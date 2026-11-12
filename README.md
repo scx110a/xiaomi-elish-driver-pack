@@ -73,7 +73,7 @@ GPU debayer + Venus 硬编）** 四套功能合并为一个**可重复安装的�
 | SoC | Qualcomm Snapdragon 870（**SM8250**） |
 | 发行版 | **Armbian 26.8.14 noble**（Ubuntu 24.04 LTS 用户态） |
 | 内核 | **`6.18.44-current-sm8250`**（Armbian sm8250 基线 + 本包补丁；BTF/ABI 三件套见 `kernel/README.md`） |
-| 启动 | `boot_b` 为 Linux 当前启动槽；**boot_a（Android）绝不写** |
+| 启动 | Linux 启动槽由 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label` 决定（本机 `boot_b`；脚本自动跟随，**不写死**）；只写该槽，**不碰 Android 槽**（本机 Android 在 `boot_a`，你的布局以实际为准） |
 | 面板 | CSOT（本包联合 DTB 为 `sm8250-xiaomi-elish-csot.dtb`；BOE 变体未实测） |
 | 内核源码（构建用） | 同版本 Armbian sm8250 源码树（如 `/var/tmp/kbuild-src`）；不随包附带 |
 | 依赖 | Ubuntu 24.04 包；一键安装器 `--deps` 自动安装 |
@@ -154,7 +154,7 @@ GPU debayer + Venus 硬编）** 四套功能合并为一个**可重复安装的�
 ```
 README.md / README.en.md / QUICKSTART.md / INSTALL.md / LICENSE
 kernel/        统一内核：驱动源码/补丁、内核配置、initramfs hook、模型级联合 DTB、
-               一键内核构建安装脚本（build-and-install.sh）、boot_b 重建脚本
+               一键内核构建安装脚本（build-and-install.sh）、Linux 启动槽重建脚本（自动检测）
 sensors/       传感器子包：systemd/udev/D-Bus 集成、启动/唤醒/诊断脚本、
                hexrpc/libssc/iio-sensor-proxy 补丁与编译说明、数据提取脚本、文档
 fingerprint/   指纹子包：qsee-supplicant/libfprint 源码与补丁、udev/systemd/PAM 配置、
@@ -197,7 +197,7 @@ cd ~/xiaomi-elish-linux-v1-final
 # 正式安装：依赖 → 提取 → 数据母本/固件不变量 → 用户态补丁+编译 → 系统集成 → 自检
 sudo ./install.sh --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk --yes
 
-# 可选：把内核也一次构建安装（写 boot_b，显式 opt-in，自动备份）
+# 可选：把内核也一次构建安装（写 Linux boot 槽，自动检测，显式 opt-in，自动备份）
 sudo ./install.sh --with-kernel --kernel-src /var/tmp/kbuild-src --write-boot --yes
 
 sudo reboot
@@ -213,9 +213,12 @@ sudo ./kernel/build-and-install.sh --kernel-src /var/tmp/kbuild-src --write-boot
 # 只预检/不写盘： --dry-run
 # 复用已编译产物： --skip-build
 ```
+**启动槽位不写死**：脚本读取 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label`
+（本机 `boot_b`；若你的 Linux 在 `boot_a` 等其他槽也会自动跟随），`--slot <label>` 只做断言。
+
 脚本自动：应用内核补丁、集成 QSEECOM/mdt_loader/qcom_scm、确保 `q6v5_pas auto_boot=true`、
 编译 Image/modules、安装模块（fastrpc/goodix_fp_spi/airoha_gps）、安装联合 DTB、
-修 initramfs hook、备份并重建 boot_b（**不碰 boot_a**）。手动步骤见 `kernel/README.md`。
+修 initramfs hook、备份并重建 Linux 启动槽（按 armbianEnv 自动检测；**不碰 Android 槽**）。手动步骤见 `kernel/README.md`。
 
 #### 2.2 传感器
 
@@ -362,4 +365,4 @@ sudo ./kernel/dtb/verify-combined-dtb.sh
 - 硬件基线：`docs/HARDWARE-STATUS.md`（权威）
 - 整机待办/已知问题：`docs/TODO.md`
 - 升级影响：`docs/UPGRADE-IMPACT-ALL.md`、`sensors/docs/UPGRADE-IMPACT.md`
-- 回滚/救援：`docs/` 与 `kernel/README.md`、备份脚本（安装内核/系统前会自动备份 boot_b 与关键配置）
+- 回滚/救援：`docs/` 与 `kernel/README.md`、备份脚本（安装内核/系统前会自动备份 Linux 启动槽与关键配置）

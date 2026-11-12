@@ -31,7 +31,7 @@ platform a800000.usb: deferred probe pending (supplier 88e4000.phy)
    ```bash
    sudo update-initramfs -u -k $(uname -r)
    ```
-3. 重建 boot 镜像并写 boot_b（推荐系统 hook）：
+3. 重建 boot 镜像并写 Linux 启动槽（本机 `boot_b`，按 armbianEnv 自动检测；推荐系统 hook）：
    ```bash
    sudo /etc/kernel/postinst.d/zz-update-abl-kernel
    ```

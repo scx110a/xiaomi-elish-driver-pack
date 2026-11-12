@@ -6,7 +6,7 @@ dbf329708391f7902199afde605f28383e9ac1d61d23ef076f76d53a84576775  ./docs/evidenc
 e5de969eab04b648b247c427a3f98fe2b376890c63d7c80ff655f98f79ebbabd  ./docs/HANDOFF-SENSORS.md
 b49596337a29eb62a665c995db9fbaf344d4ce7e93029405f8dbb7b5126ffec0  ./docs/IIO-FIX.md
 3ec31dfafddacac6daf2f4096f33b8848df635822c1848f20e82a3bdcbf08ce3  ./docs/TROUBLESHOOTING.md
-0d4faeabb507e83c3d3cf3663dcd3f6912db0927607c48104757fe989d7fec1b  ./docs/UPGRADE-IMPACT.md
+65db6df44cc41ea5f463c83e8ccdb9f1338e8bff4d8fc702edd502df9cc98199  ./docs/UPGRADE-IMPACT.md
 757acf03ab248b94452464c51ab7e4a8bb3231d41b5329d3282ffefb46f55688  ./extract/extract-from-android-vendor-img.sh
 0eef8e306f539a269ed65267006b5b224ab407a5418fb678baf9546fb6b6f6d8  ./extract/extract-from-armbian-firmware.sh
 d4eca98c2b6ddc685d07c78085c841b6aa4147629eca2996c1af851c40bb7e5d  ./extract/extract-pmos-slpi-mbn.sh
@@ -15,13 +15,13 @@ a35cbfd85dc7b4becb6eefc427a51639f0904112eeed1500d17e1cc68ad3a867  ./extract/READ
 bd7d924e706e895b310de776428a5c4c04b49f95a9efcb37b613d43c3ddb8492  ./install/FILES-MAP.md
 e653eefc922c05fed7310c3bc3bd188a1433bc312881bdaf3daeb3ee69806af9  ./install/install-data.sh
 7bc5b5f2972991340c6f4a312f242fdcca7f59d4ae27df0478e3938eb017efbb  ./install/install-system-files.sh
-f3393f4862f9b26bd2d72e1be4b1fe5d5fb901d328f11a804d72ddf2cbf4c664  ./INSTALL.md
+8b5a8eb278c9e06f12013a2f268eddff2013fed555c5a272c020973573aad051  ./INSTALL.md
 5bb1b3c423286a20b2000897cc45abb8f9498aff116dd4b3aa2cac4baba9b0ff  ./install/uninstall.sh
 5331e3d1a2970c76e0dd4542acd74fd60337052ed5d885ce1634469aec73a291  ./install/verify.sh
 3b2cb2e1a0cc9063c3e5ccef1cc67e52aba7f152d9ec275e6726fb0e70d15c45  ./MANIFEST.md
-fa1735a71b7188516902cca80ef1cd07b79972b32449c023e9f2ae0305cd69cd  ./NOTES.md
+8bb3f22c50b3e33faea1b1b5f9e07629700c5da142af18d4fa433fd374a0a157  ./NOTES.md
 7d38746f46fb05a2cad58ea769ff4466f54b17e46b1aef781322d29a11312abc  ./PATCHES.md
-5d5f67d82ce67b24283830bad9d42b6e0cdeb2ac70647e0c44bf15e43eaf0093  ./README.md
+9d5322c76a8e43c04f8e4b00869af375ec1d8393c525395cfd5f3733ee486f6e  ./README.md
 39ad6e1a970029a78736b09e22f3e5a77dcf83af9a4a53db0e1ff1e6b7b6e08b  ./scripts/hexrpc-sdsp-service.sh
 4a9a122c8caa2531226c2d34c8230ef8acaa2c601631dc3111a40b8b87830755  ./scripts/README.md
 3e66b27adb1279289c1eab68d1f7039fe5305dfeeb0da6cb11b451460499ca6e  ./scripts/sensor-boot-report.sh

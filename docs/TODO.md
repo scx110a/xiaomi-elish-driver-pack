@@ -524,6 +524,18 @@
   上游 credit（含 DeepSeek Harness Agent）。
 - 包统计：280 文件、3.2MB、无 ELF（唯一二进制为联合 DTB）；`SHA256SUMS` 重新生成并校验。
 
+**2026-11-13 凌晨：boot 槽位不再写死（适配别人的安装槽位）**
+- 审查发现关键路径原已读 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label`，但仍有硬编码：
+  `build-and-install.sh` 备份固定 `boot_b`、`install-new-kernel.sh` 固定写 `boot_b`/`slot_suffix=_b`、
+  多处文档与回滚命令固定 `boot_b`。
+- 已改为统一自动检测：`update-boot-image.sh` / `build-and-install.sh` / `install-new-kernel.sh`
+  都从 `abl_boot_partition_label` 读取 Linux 启动槽（本机 boot_b；别人可能是 boot_a），
+  未设置时拒绝盲写；`--slot <label>` 仅作断言（与 armbianEnv 不一致直接报错）。
+- 备份文件名改为 `<label>-backup-*.img`；README（中/英）/INSTALL/QUICKSTART/kernel 与 sensors 文档
+  全部改为"Linux 启动槽（自动检测）"，历史记录保留"本机 boot_b"说明。
+- 验证：全包无 `by-partlabel/boot_b` 硬编码；槽位检测在本机得到 boot_b 且分区存在；脚本 `bash -n` + `--help` 通过。
+- 包统计不变（283 个受控文件）；SHA256SUMS 重新生成并校验；已 commit + push。
+
 **磁盘清理（同日）**：删除 16 个重复 boot_b 全分区备份、相机调试一次性备份、重复内核镜像、
 GNSS candidate boot img、apt 缓存等，释放 ~4.1GB（46G→42G used）；保留
 `/root/boot_b-known-good-20261112-2305.img`（sha256 f204631e…）与文档引用的 rollback 点。

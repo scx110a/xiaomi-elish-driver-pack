@@ -23,7 +23,7 @@
 | `kernel/goodix_fp_spi/` | Goodix GF3626 SPI 传感器驱动（out-of-tree 模块） | 编译为 `goodix_fp_spi.ko` |
 | `kernel/config-used-6.18.44` | 实际编译配置（TEE/QSEECOM/MDT/BTF/FASTRPC 等） | 内核 `.config` |
 | `kernel/ARMBIAN-BASELINE.md` | 如何获取 Armbian sm8250 基线（原归档补丁集不完整，未随包） |
-| `kernel/install-new-kernel.sh` | 备份/重建 boot 镜像/写 boot_b/回读校验 | 手动执行 |
+| `kernel/install-new-kernel.sh` | 备份/重建 boot 镜像/写 Linux 启动槽/回读校验 | 手动执行（历史参考） |
 
 ### 3. LPASS pinctrl：时钟超时改为 -EPROBE_DEFER（独立于传感器/指纹）
 

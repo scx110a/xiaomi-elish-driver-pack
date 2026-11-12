@@ -4,11 +4,14 @@
 > 原则：**升级前先读本文件；内核/固件/boot 镜像是高风险项。** 任何升级后都跑一遍
 > `install/check-upgrade.sh` 与 `install/verify.sh`。
 
+> **boot 槽位**：本文以本机布局（Linux = `boot_b`、Android = `boot_a`）为例。若你的 Linux 在别的槽，
+> 把下文 `boot_b` 替换为 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label`；本包脚本会自动跟随。
+
 ## 0. 一页结论
 
 | 组件 | dpkg 管理? | 升级后会发生什么 | 影响 | 能否修补 |
 |---|---|---|---|---|
-| `linux-image-current-sm8250` | ✅ | **覆盖** `/usr/lib/linux-image-*/qcom/sm8250-xiaomi-elish-csot.dtb`（丢 vmids + 指纹 DTB 节点）、**覆盖 fastrpc.ko**（丢 VMID/SMMU 补丁）；postinst `zz-update-abl-kernel` 会用**包内 DTB**（不是我们改过的）重建 boot 镜像并 **dd 写 boot_b** | 传感器失效；指纹可能失效；严重时启动异常 | ⚠️ 可修补但**必须手动重做**：新内核源码重打补丁重编模块、重改 DTB、重建 boot 镜像；不能直接 apt 升级后不管 |
+| `linux-image-current-sm8250` | ✅ | **覆盖** `/usr/lib/linux-image-*/qcom/sm8250-xiaomi-elish-csot.dtb`（丢 vmids + 指纹 DTB 节点）、**覆盖 fastrpc.ko**（丢 VMID/SMMU 补丁）；postinst `zz-update-abl-kernel` 会用**包内 DTB**（不是我们改过的）重建 boot 镜像并 **dd 写 Linux 启动槽** | 传感器失效；指纹可能失效；严重时启动异常 | ⚠️ 可修补但**必须手动重做**：新内核源码重打补丁重编模块、重改 DTB、重建 boot 镜像；不能直接 apt 升级后不管 |
 | `linux-dtb-current-sm8250` | ✅ | 覆盖 `/boot/dtb-*/.../sm8250-xiaomi-elish-csot.dtb`（vmids/指纹节点丢失） | 同上（DTB 部分） | 可重做 |
 | `linux-headers-current-sm8250` | ✅ | 与内核同步升级；旧源码树/模块无法再编译 | 无法重编 fastrpc.ko（版本不匹配） | 需匹配版本源码树 |
 | `armbian-firmware-full` | ✅ | 覆盖 `/lib/firmware/.../elish/slpi.mbn`（把**悬空符号链接**换回普通文件）；可能恢复厂商拆份固件/数据；update-initramfs 可能把固件打进 initramfs | 中：普通文件若能被内核加载会触发 auto_boot → 本次开机传感器失效（确定性级联）；当前包的 8380B 拆份头缺段文件，通常不会 auto_boot，且启动脚本会在 +45s 自愈 | ✅ 可修补：升级后立刻恢复悬空符号链接 / 移走拆份固件；建议 hold 或加 dpkg hook |
@@ -29,7 +32,7 @@
 2. 取 **`/usr/lib/linux-image-*-sm8250/qcom/sm8250-xiaomi-elish-${panel}.dtb`**（**dpkg 包内文件**）
    与内核拼成 boot 镜像；
 3. `mkbootimg` 生成 `/boot/armbian-kernel-${panel}.img`；
-4. **`dd` 直接写入 `/dev/disk/by-partlabel/${abl_boot_partition_label}`（= boot_b）**。
+4. **`dd` 直接写入 `/dev/disk/by-partlabel/${abl_boot_partition_label}`（= 本机 `boot_b`；以 armbianEnv 为准）**。
 
 而本机的两项定制恰好都在这些文件上：
 
@@ -46,7 +49,7 @@
 
 **能否修补**：能，但属于"每次内核升级都必须手动重做"：
 
-1. 备份（升级前）：`sudo dd if=/dev/disk/by-partlabel/boot_b of=/root/boot_b-backup-$(date +%Y%m%d).img bs=1M`；
+1. 备份（升级前）：`LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt); sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M`；
    备份 `/boot/armbian-kernel-csot.img`、`/usr/lib/linux-image-*/qcom/*csot.dtb`。
 2. 准备**新内核版本**源码树（`apt-get source` 或 Armbian 源码 + 对应配置），
    重打 `../../kernel/patches/0001-fastrpc-sdsp-vmid-and-sensors-pd.patch`（新版本可能需 re-port；
@@ -146,8 +149,9 @@ sudo mv -f /lib/firmware/qcom/sm8250/xiaomi/elish/slpi.b* /lib/firmware/qcom/sm8
 
 **升级前**
 ```bash
-# 1) 备份 boot_b 与 boot 镜像
-sudo dd if=/dev/disk/by-partlabel/boot_b of=/root/boot_b-backup-$(date +%Y%m%d).img bs=1M status=progress
+# 1) 备份 Linux 启动槽与 boot 镜像
+LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
+sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
 sudo cp -a /boot/armbian-kernel-csot.img /root/
 # 2) 备份数据母本与配置
 sudo tar -czf /root/sensor-data-backup-$(date +%Y%m%d).tar.gz /usr/share/qcom-ssc-elish /etc/sensor-tuning.conf
@@ -226,6 +230,6 @@ Armbian 稳定版节奏约 **每季度一次**（2/5/8/11 月），周期内会�
 - **不想折腾**：`sudo apt-mark hold linux-image-current-sm8250 linux-dtb-current-sm8250
   linux-headers-current-sm8250 armbian-firmware-full`，把升级频率降为 0；每季度看一次
   `apt list --upgradable`，有空再按 §1/§2 流程升级。
-- **想跟进 stable**：按季度批量处理，升级前备份 boot_b/DTB/数据，升级后跑
+- **想跟进 stable**：按季度批量处理，升级前备份 Linux 启动槽/DTB/数据，升级后跑
   `install/check-upgrade.sh` + `install/verify.sh`。
 - 可在日历/提醒里设"每季度检查 Armbian 内核/固件更新"，避免错过 26.11/27.2 等版本。

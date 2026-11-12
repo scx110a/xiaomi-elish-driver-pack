@@ -9,10 +9,13 @@
 
 ## 0. 安全前置与备份
 
-1. **boot_a 绝不写**（Android 启动分区）。只允许操作 rootfs、boot_b（Linux 侧）。
-2. 备份 boot_b 分区与你当前的 DTB/boot 镜像（如果后面要改动）：
+1. **不要写 Android 启动槽**；只允许操作 rootfs 与 **Linux 启动槽**。槽位以
+   `/boot/armbianEnv.txt` 的 `abl_boot_partition_label` 为准（本机 `boot_b`；别人的安装可能是 `boot_a`）；
+   本包脚本自动跟随，不写死。
+2. 备份 Linux 启动槽与你当前的 DTB/boot 镜像（如果后面要改动；把 boot_b 换成实际槽位）：
    ```bash
-   sudo dd if=/dev/disk/by-partlabel/boot_b of=/root/boot_b-backup-$(date +%Y%m%d).img bs=1M status=progress
+   LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
+   sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
    cp -a /boot/armbian-kernel-csot.img /root/armbian-kernel-csot.img.bak-$(date +%Y%m%d)
    ```
 3. 想临时禁用传感器栈：`sudo touch /etc/disable-sensors`（安装后生效，启动脚本会直接退出）。
@@ -251,6 +254,6 @@ sudo ./install/uninstall.sh --purge-data
 彻底回滚还需要（按需）：
 - 恢复原厂 `fastrpc.ko`（安装时已备份到 `/root/fastrpc.ko.bak-*`）；
 - 卸载/覆盖 iio-sensor-proxy、libssc、/opt/hexrpc-032b；
-- 如改过 DTB/boot 镜像，使用 `/root` 或 `/boot` 的备份恢复（boot_b）。
+- 如改过 DTB/boot 镜像，使用 `/root` 或 `/boot` 的备份恢复（Linux 启动槽，按 armbianEnv 实际槽位）。
 
 详见 `docs/TROUBLESHOOTING.md` 与 `NOTES.md`。

@@ -80,7 +80,7 @@ The authoritative hardware baseline is [`docs/HARDWARE-STATUS.md`](docs/HARDWARE
 | SoC | Qualcomm Snapdragon 870 (**SM8250**) |
 | Distribution | **Armbian 26.8.14 noble** (Ubuntu 24.04 LTS userspace) |
 | Kernel | **`6.18.44-current-sm8250`** (Armbian sm8250 baseline + this package's patches; see `kernel/README.md` for BTF/ABI requirements) |
-| Boot | `boot_b` is the current Linux slot; **boot_a (Android) is never written** |
+| Boot | The Linux slot is read from `abl_boot_partition_label` in `/boot/armbianEnv.txt` (`boot_b` on this unit; the scripts follow it and **never hardcode** it); only that slot is written, the **Android slot is not touched** (Android is `boot_a` here; your layout may differ) |
 | Panel | CSOT (combined DTB is `sm8250-xiaomi-elish-csot.dtb`; BOE variant untested) |
 | Kernel source (to build) | Matching Armbian sm8250 tree (e.g. `/var/tmp/kbuild-src`); not included |
 | Dependencies | Ubuntu 24.04 packages; the installer's `--deps` installs them |
@@ -163,7 +163,7 @@ One elish unit (CSOT), Armbian noble + `6.18.44-current-sm8250`, one clean boot 
 README.md / README.en.md / QUICKSTART.md / INSTALL.md / LICENSE
 kernel/        unified kernel: driver sources/patches, config, initramfs hook,
                model-level combined DTB, one-shot kernel build+install script,
-               boot_b rebuild script
+               Linux boot-slot rebuild script (auto-detected)
 sensors/       sensor subpackage: systemd/udev/D-Bus integration, boot/resume/diag
                scripts, hexrpc/libssc/iio-sensor-proxy patches + build notes,
                data extraction scripts, docs
@@ -209,7 +209,7 @@ cd ~/xiaomi-elish-linux-v1-final
 #          → system integration → self-check
 sudo ./install.sh --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk --yes
 
-# optional: build and install the kernel too (writes boot_b; explicit opt-in; auto-backup)
+# optional: build and install the kernel too (writes the Linux boot slot; auto-detected; explicit opt-in; auto-backup)
 sudo ./install.sh --with-kernel --kernel-src /var/tmp/kbuild-src --write-boot --yes
 
 sudo reboot
@@ -224,10 +224,14 @@ sudo ./install/check-all.sh
 sudo ./kernel/build-and-install.sh --kernel-src /var/tmp/kbuild-src --write-boot
 # dry run: --dry-run ; reuse existing build: --skip-build
 ```
+**The boot slot is not hardcoded**: it is read from `abl_boot_partition_label` in
+`/boot/armbianEnv.txt` (`boot_b` on this unit; installs on `boot_a` are followed too), and
+`--slot <label>` is only an assertion.
+
 It applies kernel patches, integrates QSEECOM/mdt_loader/qcom_scm, enforces
 `q6v5_pas auto_boot=true`, builds Image/modules, installs fastrpc/goodix_fp_spi/airoha_gps,
-installs the combined DTB and initramfs hook, backs up and rebuilds boot_b
-(**never touches boot_a**). Manual steps: `kernel/README.md`.
+installs the combined DTB and initramfs hook, backs up and rebuilds the Linux boot slot
+(auto-detected via armbianEnv; **never touches the Android slot**). Manual steps: `kernel/README.md`.
 
 #### 2.2 Sensors
 
@@ -382,4 +386,4 @@ under the **MIT License** — see [`LICENSE`](LICENSE).
 - Hardware baseline: `docs/HARDWARE-STATUS.md` (authoritative)
 - TODO / known issues: `docs/TODO.md`
 - Upgrade impact: `docs/UPGRADE-IMPACT-ALL.md`, `sensors/docs/UPGRADE-IMPACT.md`
-- Rollback/recovery: `docs/`, `kernel/README.md`; kernel/system installers back up boot_b and key configs automatically.
+- Rollback/recovery: `docs/`, `kernel/README.md`; kernel/system installers back up the Linux boot slot and key configs automatically.

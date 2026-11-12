@@ -26,7 +26,7 @@ cd ~/xiaomi-elish-linux-v1-final
 # 正式安装（自动：依赖→提取→数据母本→补丁+编译用户态→系统集成→自检）：
 sudo ./install.sh --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk --yes
 
-# 内核（可选；写 boot_b，必须显式 opt-in）：
+# 内核（可选；写 Linux boot 槽，自动检测，必须显式 opt-in）：
 sudo ./install.sh --with-kernel --kernel-src /var/tmp/kbuild-src --write-boot --yes
 ```
 

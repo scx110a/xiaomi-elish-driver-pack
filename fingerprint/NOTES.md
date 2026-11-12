@@ -5,7 +5,7 @@
 
 ## 0. 铁律
 
-1. 改内核/启动镜像前备份 boot_b、`/boot/armbian-kernel-csot.img`、DTB；回退用 `dd` 写回 boot_b（只写 Linux 侧）。
+1. 改内核/启动镜像前备份 Linux 启动槽（本机 `boot_b`，按 armbianEnv 的 `abl_boot_partition_label`）、`/boot/armbian-kernel-csot.img`、DTB；回退用 `dd` 写回同一槽位（只写 Linux 侧）。
 2. **不要升级 edge 内核**（ABL 脚本通配符会生成坏镜像）；不要关 `CONFIG_DEBUG_INFO_BTF`；不要改
    `CONFIG_LOCALVERSION`。
 3. PAM 改动前确保还有 root/密码登录通道（保持一个 root TTY 或用密码 sudo），不要只留指纹一条路。

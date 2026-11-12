@@ -11,7 +11,7 @@ cd ~/xiaomi-elish-linux-v1-final
 ./install.sh --dry-run --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk
 # 正式安装（自动：依赖 → 提取 → 数据母本 → 补丁+编译用户态 → 系统集成 → 自检）
 sudo ./install.sh --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk --yes
-# 可选：一次性把内核也构建安装（写 boot_b，需显式）
+# 可选：一次性把内核也构建安装（写 Linux boot 槽，自动检测，需显式）
 sudo ./install.sh --with-kernel --kernel-src /var/tmp/kbuild-src --write-boot --yes
 sudo reboot && sudo ./install/check-all.sh
 ```
@@ -23,10 +23,12 @@ sudo reboot && sudo ./install/check-all.sh
 
 ## 0. 安全前置与备份
 
-1. **boot_a（Android 启动分区）绝不写**；只操作 rootfs 与 boot_b。
-2. 备份 boot_b / boot 镜像 / DTB：
+1. **不要写 Android 启动槽**；只操作 rootfs 与 **Linux 启动槽**。槽位不写死：以
+   `/boot/armbianEnv.txt` 的 `abl_boot_partition_label` 为准（本机 `boot_b`；别人的安装可能是 `boot_a`）。
+2. 备份 Linux 启动槽 / boot 镜像 / DTB（把下面的 boot_b 换成实际槽位）：
    ```bash
-   sudo dd if=/dev/disk/by-partlabel/boot_b of=/root/boot_b-backup-$(date +%Y%m%d).img bs=1M status=progress
+   LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt); \
+   sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
    sudo cp -a /boot/armbian-kernel-csot.img /root/
    sudo cp -a /usr/lib/linux-image-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb /root/
    ```
@@ -144,11 +146,12 @@ sudo ./kernel/initramfs/install-hook.sh    # 安装修复版 hook + update-initr
 # 验证无输出：lsinitramfs /boot/initrd.img-$(uname -r) | grep slpi
 ```
 
-**重建 boot 镜像并写 boot_b**（推荐系统 hook，使用新 initrd）：
+**重建 boot 镜像并写入 Linux 启动槽**（推荐系统 hook，使用新 initrd；槽位自动检测）：
 
 ```bash
 sudo cp -a /boot/armbian-kernel-csot.img /boot/armbian-kernel-csot.img.bak-$(date +%Y%m%d)
-sudo dd if=/dev/disk/by-partlabel/boot_b of=/root/boot_b-backup-$(date +%Y%m%d).img bs=1M status=progress
+LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
+sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
 sudo /etc/kernel/postinst.d/zz-update-abl-kernel
 ```
 
@@ -236,7 +239,7 @@ gpspipe -w -n 5        # 室内无星 mode=1 正常；室外应出现 mode:2/3 �
 - 指纹禁用：`sudo ./fingerprint/install/uninstall-fingerprint.sh`（保留模块/TA/libfprint）。
 - 传感器卸载：`cd sensors && sudo ./install/uninstall.sh [--purge-data]`。
 - GNSS 卸载：`cd gnss && sudo ./install/uninstall.sh`（保留内核模块；GNSS flash 不动）。
-- 内核回退：`sudo dd if=/root/boot_b-backup-*.img of=/dev/disk/by-partlabel/boot_b`。
+- 内核回退：`LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt); sudo dd if=/root/${LABEL}-backup-*.img of=/dev/disk/by-partlabel/$LABEL`（旧备份名可能是 `boot_b-backup-*`）。
 - 升级影响：**先读 `docs/UPGRADE-IMPACT-ALL.md`**（内核/固件升级会同时破坏传感器/指纹/GNSS）。
 
 ## 9. 升级/重建提示

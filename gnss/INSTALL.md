@@ -17,7 +17,7 @@ sudo install -D -m 644 ../kernel/dtb/sm8250-xiaomi-elish-csot.dtb \
   "/usr/lib/linux-image-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb"
 sudo install -D -m 644 ../kernel/dtb/sm8250-xiaomi-elish-csot.dtb \
   "/boot/dtb-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb"
-# 2) 校验 + 备份并重建 boot_b（会写 boot_b，绝不写 boot_a；详见 kernel/update-boot-image.sh）
+# 2) 校验 + 备份并重建 Linux 启动槽（自动检测；绝不写 Android 槽；详见 kernel/update-boot-image.sh）
 ../kernel/dtb/verify-combined-dtb.sh "/usr/lib/linux-image-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb"
 sudo ../kernel/update-boot-image.sh
 sudo reboot

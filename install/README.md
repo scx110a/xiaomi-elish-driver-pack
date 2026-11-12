@@ -36,7 +36,7 @@ sudo ./install/check-all.sh
 | `fingerprint/install/install-fingerprint-files.sh` | 指纹 udev/systemd/脚本（`--pam --user` 可选） |
 | `gnss/install/install.sh` | GNSS 守护进程 + gpsd/GeoClue 集成 |
 | `camera/install.sh` | 相机后端/脚本/udev/虚拟相机/自启/休眠唤醒恢复 |
-| `kernel/build-and-install.sh` | 内核补丁/配置/编译/模块/DTB/initramfs/boot_b（自动备份） |
+| `kernel/build-and-install.sh` | 内核补丁/配置/编译/模块/DTB/initramfs/Linux 启动槽（自动检测；自动备份） |
 
 各脚本都支持 `--help` 与 `--dry-run`；除特别说明外需 `sudo`。
 

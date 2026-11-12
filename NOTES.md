@@ -7,7 +7,7 @@
 ## 0. 红线
 
 1. **boot_a 是 Android 启动分区，绝对不要写**。只操作 rootfs 和 boot_b（Linux 侧）。
-2. 改内核/启动镜像/DTB 前必须备份 boot_b、`/boot/armbian-kernel-csot.img`、DTB。
+2. 改内核/启动镜像/DTB 前必须备份 Linux 启动槽（本机 `boot_b`，按 armbianEnv）、`/boot/armbian-kernel-csot.img`、DTB。
 3. **不要用 `dtc` 反编译-重编译改 DTB**：会破坏 `regulators-1/ldo10`（L10C 3.3V）的 4 字节调压属性；
    L10A 是 `regulators-0/ldo10`（3.008V，指纹供电），不在该问题范围。改 DTB 请用等长二进制替换或完整源码重编。
 4. **不要用当前 `/var/tmp/kbuild-src` 的 DTS 重建 DTB**：该树不完整（会丢 17 节点/109 属性）；
@@ -28,7 +28,7 @@
 - 联合 DTB 需同时含：`/soc@0/remoteproc@5c00000/glink-edge/fastrpc` 的 `qcom,vmids=<3 15 5 6>`；
   根 `/fingerprint` 节点（`compatible="goodix,gf3626"`、`firmware-name="gfenu"`、GPIO 23/125、L10A）；
   GNSS 的 QUP5 UART（`i2c@994000` → `qcom,geni-uart`，`status=okay`）与根 `/bcm4775` 节点。
-- 一次构建、一次写 boot_b。校验：`kernel/dtb/verify-combined-dtb.sh`。
+- 一次构建、一次写 Linux 启动槽（自动检测）。校验：`kernel/dtb/verify-combined-dtb.sh`。
 - **内核升级会覆盖全部改动**（模块、DTB、boot 镜像），传感器/指纹/GNSS 会同时失效；详见升级文档。
 - `zz-update-abl-kernel` 会用**包内 DTB**（不是你的修改版）重建 boot_b；内核升级后必须手动重做联合 DTB。
 
@@ -88,7 +88,7 @@
 
 | 场景 | 操作 |
 |---|---|
-| 内核升级 | 重做统一内核 + 联合 DTB + boot 镜像；备份 boot_b；参考 `kernel/README.md` |
+| 内核升级 | 重做统一内核 + 联合 DTB + boot 镜像；备份 Linux 启动槽；参考 `kernel/README.md` |
 | `armbian-firmware-full` 升级 | 检查/恢复 SLPI 符号链接（或让启动脚本自愈后重启一次） |
 | `libfprint-2-2` 升级 | 重编安装 libfprint + `ldconfig` + 重启 fprintd |
 | 指纹 PAM 出问题 | 恢复 `/root/fp-pam-backup-*/sudo`；确保有密码登录 |

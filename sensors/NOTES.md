@@ -2,7 +2,8 @@
 
 ## 0. 三条红线
 
-1. **boot_a 是 Android 启动分区，绝对不要写入。** 不要改 Android 侧任何分区/镜像。
+1. **不要写 Android 启动槽。** 不要改 Android 侧任何分区/镜像。（本机 Android 在 `boot_a`、Linux 在 `boot_b`；
+   若你的 Linux 在别的槽，以 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label` 为准，脚本自动跟随）
 2. 不要在传感器栈运行中执行 `echo stop > /sys/class/remoteproc/*/state`：历史上会导致 RCU stall → panic。
 3. 不要用 `dtc` 反编译-重编译来改 DTB：会破坏 `regulators-1/ldo10` 的 4 字节
    `regulator-min/max-microvolt`（L10A 供电相关），属于语义破坏。DTB 修改方式见 `../kernel/dtb/README.md`。

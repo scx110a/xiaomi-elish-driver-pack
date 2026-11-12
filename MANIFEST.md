@@ -26,7 +26,7 @@ camera/        相机子包：elish-camera/（前后摄全分辨率 3280×2464/4
 | 内容 | 说明 |
 |---|---|
 | `README.md` | 统一内核构建步骤、配置/ABI 校验、联合 DTB/boot 镜像 |
-| `build-and-install.sh` | 一键补丁/配置/编译/模块/DTB/initramfs/boot_b（自动备份；不碰 boot_a） |
+| `build-and-install.sh` | 一键补丁/配置/编译/模块/DTB/initramfs/Linux 启动槽（按 armbianEnv 自动检测；自动备份；不碰 Android 槽） |
 | `qseecom/` | 指纹 QSEECOM TEE 驱动 |
 | `mdt_loader.c` / `qcom_scm.c` | 指纹内核文件 |
 | `goodix_fp_spi/` | 指纹传感器驱动源码（无编译产物） |
@@ -39,8 +39,8 @@ camera/        相机子包：elish-camera/（前后摄全分辨率 3280×2464/4
 | `patches/0002-pinctrl-lpass-lpi-defer-on-clock-timeout.patch`、`PINCTRL-LPASS.md` | LPASS pinctrl defer（pogo 键盘/USB，独立问题） |
 | `patches/0003-qcom-mdt-loader-user-selectable.patch` | QCOM_MDT_LOADER 用户可选（TEE_QSEECOM 依赖） |
 | `patches/0004-smb5-typec-legacy-reset-resume.patch`、`CHARGER-RESUME.md` | SMB5 suspend/resume 后 Type-C legacy/100mA 卡死修复 + 验证记录 |
-| `update-boot-image.sh` | 预检 DTB/initramfs + 备份 boot_b + 重建 + 回读校验 |
-| `install-new-kernel.sh` | 安装内核并写 boot_b 的脚本 |
+| `update-boot-image.sh` | 预检 DTB/initramfs + 备份目标 Linux 启动槽 + 重建 + 回读校验（槽位自动检测；`--slot` 断言） |
+| `install-new-kernel.sh` | 安装内核并写 Linux 启动槽的脚本（自动检测；历史参考） |
 | `include/` | 指纹驱动必需的 3 个内核头文件 |
 | `INTEGRATION.md` | 头文件 + drivers/tee Kconfig/Makefile 集成步骤 |
 | `initramfs/` | 修复版 initramfs hook + 安装脚本（防止 SLPI 固件进 initramfs） |

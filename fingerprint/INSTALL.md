@@ -12,9 +12,10 @@
 ```bash
 uname -r                                    # 6.18.44-current-sm8250
 cat /sys/firmware/devicetree/base/model     # Xiaomi Mi Pad 5 Pro (CSOT)
-ls -l /dev/disk/by-partlabel/boot_b         # 启动分区
-# 备份 boot_b / boot 镜像 / DTB
-sudo dd if=/dev/disk/by-partlabel/boot_b of=/root/boot_b-backup-$(date +%Y%m%d).img bs=1M status=progress
+LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
+ls -l /dev/disk/by-partlabel/$LABEL         # Linux 启动分区（本机 boot_b；按 armbianEnv 自动）
+# 备份 Linux 启动槽 / boot 镜像 / DTB
+sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
 sudo cp -a /boot/armbian-kernel-csot.img /root/
 sudo cp -a /usr/lib/linux-image-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb /root/
 ```
@@ -176,7 +177,7 @@ fprintd-verify "$USER"                          # verify-match
 ## 12. 回退
 
 - **PAM**：恢复 `/root/fp-pam-backup-*/sudo` 到 `/etc/pam.d/sudo`；若曾停用 NOPASSWD，按需恢复。
-- **内核/启动镜像**：`sudo dd if=/root/boot_b-backup-*.img of=/dev/disk/by-partlabel/boot_b`，
+- **内核/启动镜像**：`LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt); sudo dd if=/root/${LABEL}-backup-*.img of=/dev/disk/by-partlabel/$LABEL`（旧备份名可能为 `boot_b-backup-*`），
   或 `/boot/armbian-kernel-csot.img` 备份。
 - **libfprint**：`sudo apt install --reinstall libfprint-2-2 && sudo systemctl restart fprintd`。
 - **服务/配置**：`sudo ./install/uninstall-fingerprint.sh`（保留模块/TA/libfprint）。

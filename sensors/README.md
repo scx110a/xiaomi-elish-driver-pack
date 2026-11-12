@@ -76,7 +76,8 @@ sudo reboot
 
 ## 红线（必须遵守）
 
-- **boot_a 是 Android 启动分区，绝对不要写入**；不要改 Android 侧任何分区。
+- **不要写 Android 启动槽**；不要改 Android 侧任何分区。（本机 Android 在 `boot_a`、Linux 在 `boot_b`；
+  若你的 Linux 在别的槽，以 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label` 为准，本包脚本自动跟随）
 - 不要在传感器栈测试中途 `echo stop > /sys/class/remoteproc/*/state`（历史会 RCU stall → panic）。
 - 不要用 `dtc` 往返修改 DTB（会破坏 `regulators-1/ldo10` 的 4 字节电压属性）——DTB 修改见 `../kernel/dtb/README.md`。
 

@@ -2,12 +2,15 @@
 
 > 针对"多套功能共用一次内核/DTB/boot 镜像"的合并包。传感器侧详细频率分析见
 > `../sensors/docs/UPGRADE-IMPACT.md`；本文件补充指纹与合并影响。
+>
+> **boot 槽位**：本文以本机布局（Linux = `boot_b`、Android = `boot_a`）为例。若你的 Linux 在别的槽，
+> 把下文 `boot_b` 替换为 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label`；本包脚本会自动跟随。
 
 ## 1. 升级影响总表
 
 | 组件（apt 管理） | 升级后影响 | 传感器 | 指纹 | 能否修补 |
 |---|---|---|---|---|
-| `linux-image-current-sm8250` | 覆盖 fastrpc.ko、QSEECOM/mdt_loader/qcom_scm、goodix 模块目录、`/usr/lib/linux-image/*/qcom/*.dtb`；postinst 用**包内 DTB**重建 boot 镜像并写 boot_b | 🔴 失效 | 🔴 失效 | ✅ 必须手动重做统一内核 + 联合 DTB + boot 镜像（`kernel/README.md`） |
+| `linux-image-current-sm8250` | 覆盖 fastrpc.ko、QSEECOM/mdt_loader/qcom_scm、goodix 模块目录、`/usr/lib/linux-image/*/qcom/*.dtb`；postinst 用**包内 DTB**重建 boot 镜像并写 Linux 启动槽 | 🔴 失效 | 🔴 失效 | ✅ 必须手动重做统一内核 + 联合 DTB + boot 镜像（`kernel/README.md`） |
 | `linux-dtb-current-sm8250` | 覆盖 `/boot/dtb-*` 下 DTB（丢 vmids/指纹节点/**GNSS 的 QUP5 UART+bcm4775**） | 🔴 | 🔴 | ✅ 重做联合 DTB（GNSS 也会失效：无 `/dev/ttyHS1`） |
 | `linux-headers-current-sm8250` | 随内核升级；旧源码树/模块无法重编 | 🟠 | 🟠 | 需匹配版本源码 |
 | `armbian-firmware-full` | 把 SLPI 固件路径从悬空符号链接恢复为普通文件；可能恢复拆份固件 | 🟠 可能 auto_boot（启动脚本多数自愈） | 🟢 无影响 | ✅ 恢复符号链接/移走拆份固件 |
@@ -50,7 +53,8 @@ sudo apt-mark hold libfprint-2-2
 
 **升级前**
 ```bash
-sudo dd if=/dev/disk/by-partlabel/boot_b of=/root/boot_b-backup-$(date +%Y%m%d).img bs=1M status=progress
+LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
+sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
 sudo cp -a /boot/armbian-kernel-csot.img /root/
 sudo cp -a /usr/lib/linux-image-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb /root/
 sudo cp -a /etc/pam.d/sudo /root/sudo.pam.bak-$(date +%Y%m%d)
@@ -79,7 +83,7 @@ lsinitramfs /boot/initrd.img-$(uname -r) | grep 'elish/slpi' && echo 'ERROR: 需
 
 | 场景 | 回退 |
 |---|---|
-| 内核/启动镜像 | `sudo dd if=/root/boot_b-backup-*.img of=/dev/disk/by-partlabel/boot_b`（只写 boot_b） |
+| 内核/启动镜像 | `LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt); sudo dd if=/root/${LABEL}-backup-*.img of=/dev/disk/by-partlabel/$LABEL`（只写同一 Linux 槽；旧备份名可能为 `boot_b-backup-*`） |
 | 指纹 libfprint | 重编安装，或 `sudo apt install --reinstall libfprint-2-2` 后再重编 |
 | PAM | 恢复 `/root/sudo.pam.bak-*` 或 `/root/fp-pam-backup-*/sudo` |
 | 传感器固件链接 | 移走普通文件、重建悬空符号链接（见 `../NOTES.md`） |
@@ -90,7 +94,7 @@ lsinitramfs /boot/initrd.img-$(uname -r) | grep 'elish/slpi' && echo 'ERROR: 需
 - 内核/DTB 重建后**必须同时验证各套功能**（`kernel/dtb/verify-combined-dtb.sh` + `sensors/verify.sh`
   + `fingerprint/verify-fingerprint.sh`），不要只验证一边。
 - 升级后 boot 镜像必须包含**联合 DTB**；如果只保留指纹节点或只保留 vmids，另一套功能会失效。
-- `zz-update-abl-kernel` 会自动重建并写 boot_b（危险）；升级内核前先备份，升级后立即检查。
+- `zz-update-abl-kernel` 会自动重建并写 Linux 启动槽（危险；槽位由 armbianEnv 决定）；升级内核前先备份，升级后立即检查。
 - 内核升级后 Armbian 补丁集可能随版本变化，`kernel/ARMBIAN-BASELINE.md` 说明如何获取 6.18.44 基线；
   新内核需要对应版本补丁（可能需 re-port）。
 

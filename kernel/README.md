@@ -29,7 +29,7 @@
 | `patches/0006-ov13b10-of-supplies-reset.patch` | OV13B10 OF match + avdd/dovdd/dvdd 供电 + reset 脉冲（后摄 DTS 适配中；见 `camera/README.md`） |
 | `patches/0007-cn3927v.patch` | OV13B10 后摄 CN3927V VCM 驱动（focus sysfs + DTS node；见 `camera/README.md`） |
 | `patches/0008-hi556-of.patch` | Hi556 景深 OF match + 非 ACPI power/identify（DTS 已接，I2C 仍待查） |
-| `update-boot-image.sh` | 推荐：预检 DTB/initramfs + 备份 boot_b + 重建 + 回读校验 |
+| `update-boot-image.sh` | 推荐：预检 DTB/initramfs + 备份目标 Linux 启动槽 + 重建 + 回读校验（自动检测） |
 | `PINCTRL-LPASS.md` | 该补丁的症状/部署/initramfs 注意事项 |
 | `CHARGER-RESUME.md` | SMB5 Type-C legacy/suspend 充电卡死修复与验证 |
 | `include/` | 指纹驱动必需的 3 个内核头文件（qcom_scm.h / mdt_loader.h / tee.h） |
@@ -40,7 +40,7 @@
 | `initramfs/` | 修复版 initramfs hook（防止 SLPI 固件被打进 initramfs）+ 安装脚本 |
 | `dtb/sm8250-xiaomi-elish-csot.dtb` | 已验证的联合 DTB（当前树 DTS 不完整，见 dtb/README.md） |
 | `patches/fastrpc.c.modified` | 已打补丁的完整 fastrpc.c（对照用） |
-| `install-new-kernel.sh` | 安装内核 + 重建 boot 镜像并写 boot_b（指纹项目原脚本） |
+| `install-new-kernel.sh` | 安装内核 + 重建 boot 镜像并写 Linux 启动槽（自动检测；历史参考） |
 | `dtb/` | 联合 DTB 说明、指纹节点参考、校验脚本 |
 
 ## 步骤 A：在现有 Armbian 构建树上增量构建（推荐）
@@ -196,16 +196,19 @@ sudo ./kernel/initramfs/install-hook.sh    # 备份原 hook、安装修复版、
 
 注意：Armbian BSP 包升级可能覆盖该 hook；升级后需重装本 hook。
 
-### 重建启动镜像并写 boot_b
+### 重建启动镜像并写入 Linux 启动槽
 
-推荐使用本包的安全封装（预检 DTB/initramfs、备份 boot_b、调系统 hook、回读 cmp）：
+本包**不写死 `boot_b`**：槽位取 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label`
+（本机 `boot_b`；不同安装可能是 `boot_a` 或其他）。未设置时脚本拒绝执行；`--slot` 仅作断言。
+
+推荐使用本包的安全封装（预检 DTB/initramfs、备份目标 Linux 启动槽、调系统 hook、回读 cmp）：
 
 ```bash
 sudo ./kernel/update-boot-image.sh --dry-run   # 只预检/备份，不写盘（当前 initramfs 未修复时会在此失败）
 sudo ./kernel/update-boot-image.sh             # 预检 → 备份 → zz-update-abl-kernel → 回读校验
 ```
 
-等价的手工流程（封装脚本内部就是这么做的）：备份 boot_b → `verify-combined-dtb.sh` 预检 →
+等价的手工流程（封装脚本内部就是这么做的）：备份目标 Linux 启动槽 → `verify-combined-dtb.sh` 预检 →
 确认 initramfs 不含 slpi → `sudo /etc/kernel/postinst.d/zz-update-abl-kernel` → `sync` + 回读 `cmp`。
 
 `kernel/install-new-kernel.sh` 属**历史脚本**：它从旧启动镜像里提取 ramdisk、硬编码
@@ -227,5 +230,5 @@ lsmod | grep -E 'fastrpc|goodix_fp_spi'
 
 ## 升级警告
 
-任何 `apt` 内核/DTB 升级都会覆盖本目录的全部改动并重建 boot_b（`zz-update-abl-kernel` 用**包内 DTB**）。
+任何 `apt` 内核/DTB 升级都会覆盖本目录的全部改动并重建 Linux 启动槽（`zz-update-abl-kernel` 用**包内 DTB**；槽位由 armbianEnv 决定）。
 升级后必须按本页重做内核 + 联合 DTB + boot 镜像，否则传感器/指纹同时失效。详见根 `docs/UPGRADE-IMPACT-ALL.md`。

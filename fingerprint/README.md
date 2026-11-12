@@ -65,7 +65,7 @@ docs/                     指纹交接文档、DT 对比、调研报告等（已
 
 ## 红线
 
-- 改内核/启动镜像前必须备份 boot_b 和 DTB；**不要用 `dtc` 反编译重编译改 DTB**（会破坏 L10A 调压属性）。
+- 改内核/启动镜像前必须备份 Linux 启动槽（本机 `boot_b`，按 `/boot/armbianEnv.txt` 的 `abl_boot_partition_label`）和 DTB；**不要用 `dtc` 反编译重编译改 DTB**（会破坏 L10A 调压属性）。
 - 不要启用 `edge` 内核；不要关闭 `CONFIG_DEBUG_INFO_BTF`；不要改 `CONFIG_LOCALVERSION`。
 - **不要重新启用 NOPASSWD sudo**（本包不附带 `/etc/sudoers.d/020-nopasswd*`）；PAM 改动前确保能用密码/TTY 登录。
 - 不要用 `fingerpr` TA（错误的 FPC/旧方案镜像），必须用 `gfenu`。

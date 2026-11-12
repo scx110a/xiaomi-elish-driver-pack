@@ -5,21 +5,24 @@
 #   sudo ./kernel/build-and-install.sh --kernel-src /var/tmp/kbuild-src --write-boot
 #   sudo ./kernel/build-and-install.sh --kernel-src ... --dry-run          # 只演示
 #   sudo ./kernel/build-and-install.sh --kernel-src ... --skip-build       # 复用已编好的产物
+#   sudo ./kernel/build-and-install.sh ... --slot boot_b                  # 断言 Linux 启动槽（默认读 armbianEnv）
 #
 # 说明：
 # - 源码树必须是与运行内核同版本的 Armbian sm8250 树（见 kernel/ARMBIAN-BASELINE.md / README 步骤 B）。
-# - **只写 rootfs 与 boot_b，绝不写 boot_a / Android 分区**；--write-boot 才会重建并写 boot_b
+# - **只写 rootfs 与 Linux 启动槽（自动检测），不碰 Android 槽**；--write-boot 才会重建并写该槽
 #   （内部调用 kernel/update-boot-image.sh，含备份 + 回读校验）。
-# - 会先备份：boot_b、现有 fastrpc/goodix/airoha 模块、联合 DTB、被覆盖的内核源文件。
+# - 槽位取自 /boot/armbianEnv.txt 的 abl_boot_partition_label（本机 boot_b；别人的安装可能是 boot_a）。
+# - 会先备份：目标 Linux boot 槽、现有 fastrpc/goodix/airoha 模块、联合 DTB、被覆盖的内核源文件。
 set -euo pipefail
 TAG=kernel
 . "$(dirname "$0")/../install/lib/common.sh"
 
-KSRC=""; WRITE_BOOT=0; SKIP_BUILD=0; JOBS=$(nproc)
+KSRC=""; WRITE_BOOT=0; SKIP_BUILD=0; JOBS=$(nproc); SLOT_ARG=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --kernel-src) KSRC=${2:-}; shift 2 ;;
         --write-boot) WRITE_BOOT=1; shift ;;
+        --slot) SLOT_ARG=${2:-}; shift 2 ;;
         --skip-build) SKIP_BUILD=1; shift ;;
         --jobs) JOBS=${2:-$(nproc)}; shift 2 ;;
         --yes) ASSUME_YES=1; shift ;;
@@ -30,6 +33,20 @@ while [ $# -gt 0 ]; do
 done
 export DRY_RUN ASSUME_YES
 need_root
+
+# ---- Linux boot 槽位自动检测（不写死 boot_b）----
+ENVFILE=/boot/armbianEnv.txt
+DETECTED=""
+[ -f "$ENVFILE" ] && DETECTED=$(sed -n 's/^[[:space:]]*abl_boot_partition_label[[:space:]]*=[[:space:]]*//p' "$ENVFILE" | tail -1 | tr -d '\r')
+[ -n "$DETECTED" ] || die "$ENVFILE 未设置 abl_boot_partition_label；先确认 Linux 启动槽并写入 armbianEnv（本脚本不盲写）"
+if [ -n "$SLOT_ARG" ] && [ "$SLOT_ARG" != "$DETECTED" ]; then
+    die "--slot $SLOT_ARG 与 armbianEnv 的 $DETECTED 不一致；ABL 启动链以 armbianEnv 为准，请先修正 armbianEnv"
+fi
+LABEL=$DETECTED
+PART=/dev/disk/by-partlabel/$LABEL
+[ -e "$PART" ] || die "找不到启动分区 $PART"
+log "Linux 启动槽: $LABEL（来自 $ENVFILE: abl_boot_partition_label）"
+
 [ -n "$KSRC" ] || die "缺少 --kernel-src <内核源码树>（本包不附带内核源码；见 kernel/ARMBIAN-BASELINE.md）"
 [ -d "$KSRC" ] || die "内核源码目录不存在: $KSRC"
 
@@ -46,7 +63,7 @@ BK=/root/elish-kernel-backup-$D
 step "0) 备份（$BK）"
 run mkdir -p "$BK"
 if [ "$WRITE_BOOT" = 1 ]; then
-    run dd if=/dev/disk/by-partlabel/boot_b of="$BK/boot_b.img" bs=1M status=none
+    run dd if="$PART" of="$BK/${LABEL}.img" bs=1M status=none
 fi
 for f in "/lib/modules/$KREL_RUN/kernel/drivers/misc/fastrpc.ko" \
          "/lib/modules/$KREL_RUN/extra/goodix_fp_spi.ko" \
@@ -152,10 +169,10 @@ run bash "$TAGK/dtb/verify-combined-dtb.sh" "$DTBDIR/sm8250-xiaomi-elish-csot.dt
 step "8) initramfs 修复 hook + 重建 initramfs"
 run bash "$TAGK/initramfs/install-hook.sh"
 
-step "9) 重建 boot_b（不碰 boot_a）"
+step "9) 重建 Linux 启动槽 $LABEL（不碰 Android 槽）"
 if [ "$WRITE_BOOT" = 1 ]; then
-    confirm "即将重建并写入 boot_b（已备份到 $BK/boot_b.img）。继续？" || die "用户取消（未写 boot_b）"
-    run bash "$TAGK/update-boot-image.sh"
+    confirm "即将重建并写入 $LABEL（已备份到 $BK/${LABEL}.img）。继续？" || die "用户取消（未写 $LABEL）"
+    run bash "$TAGK/update-boot-image.sh" --slot "$LABEL"
 else
     log "未加 --write-boot：跳过写盘。需要时手动执行："
     echo "    sudo $TAGK/update-boot-image.sh"
@@ -163,12 +180,12 @@ fi
 
 step "完成"
 cat <<EOF
-已安装模块/DTB/initramfs${WRITE_BOOT:+，boot_b 已重建并校验}。
+已安装模块/DTB/initramfs${WRITE_BOOT:+，$LABEL 已重建并校验}。
 下一步：
   sudo reboot
   重启后验证：
     sudo $PKG_ROOT/install/check-all.sh
     dmesg | grep -E 'SDSP assign|qseecom|Direct firmware load.*slpi'
     ls -l /dev/fastrpc-sdsp /dev/tee0 /dev/goodix_fp /dev/airoha_gps
-回滚：boot_b 备份在 $BK/boot_b.img；模块/DTB 备份也在该目录。
+回滚：$LABEL 备份在 $BK/${LABEL}.img；模块/DTB 备份也在该目录。
 EOF

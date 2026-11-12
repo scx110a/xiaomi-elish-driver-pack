@@ -13,7 +13,7 @@
 #   --with-gnss / --no-gnss        GNSS 子系统（默认装）
 #   --with-camera / --no-camera    相机子系统（默认装）
 #   --no-fingerprint               跳过指纹
-#   --with-kernel --kernel-src DIR [--write-boot]   内核构建+安装（写 boot_b，显式 opt-in）
+#   --with-kernel --kernel-src DIR [--write-boot]   内核构建+安装（写 Linux boot 槽，自动检测，显式 opt-in）
 #   --with-regver          额外构建 regver-v1 回退版 hexagonrpcd
 #   --force                已安装的组件也重编
 #   --deps / --no-deps     自动安装 apt 依赖（默认装）
@@ -186,7 +186,7 @@ fi
 
 # ---------------- 内核（可选，显式 opt-in） ----------------
 if [ "$WITH_KERNEL" = 1 ]; then
-    step "6) 内核构建 + 安装（写 boot_b，不碰 boot_a）"
+    step "6) 内核构建 + 安装（写 Linux boot 槽，自动检测；不碰 Android 槽）"
     [ -n "$KSRC" ] || die "--with-kernel 需要 --kernel-src <同版本内核源码树>（如 /var/tmp/kbuild-src）"
     KARGS=(--kernel-src "$KSRC")
     [ "$WRITE_BOOT" = 1 ] && KARGS+=(--write-boot)
