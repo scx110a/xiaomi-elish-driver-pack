@@ -1,0 +1,11 @@
+[Unit]
+Description=Post-boot sensor stack verification report
+After=slpi-sensors.service iio-sensor-proxy.service
+ConditionPathExists=/usr/local/sbin/sensor-boot-report.sh
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 20
+ExecStart=/usr/local/sbin/sensor-boot-report.sh
+TimeoutStartSec=300
+

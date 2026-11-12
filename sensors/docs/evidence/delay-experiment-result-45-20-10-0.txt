@@ -1,0 +1,39 @@
+===== 传感器启动延迟对照实验结果 2026-11-11T19:10:37+08:00 =====
+结束原因: all rounds done
+总轮次: 10
+
+各延迟成功率:
+PRE_DELAY=0s: 3/3 OK
+PRE_DELAY=10s: 3/3 OK
+PRE_DELAY=20s: 2/3 OK
+PRE_DELAY=45s: 1/1 OK
+
+最终选择: PRE_DELAY=10s
+  规则：在 10/20/45 中挑最小的 100% 成功档（0s 仅作对照观察，不作为默认）；没有 100% 档则回退 45s。
+  IIO_DELAY=8 保持不变。
+
+说明：当前 boot 仍使用实验前配置，新配置下次开机生效。
+完整日志: /var/lib/sensor-delay-exp/log.txt
+
+--- 原始日志 ---
+=== experiment initialized 2026-11-11T18:48:01+08:00  plan: 45x1, 20x3, 10x3, 0x3 (0s 仅对照) ===
+2026-11-11T18:52:48+08:00 round=0 delay=45 cfg=45 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T18:52:48+08:00 next: PRE_DELAY=20 (round 1/10)
+2026-11-11T18:57:44+08:00 round=1 delay=20 cfg=20 result=FAIL why="timeout" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=0 last_ok=""
+2026-11-11T18:57:44+08:00 next: PRE_DELAY=20 (round 2/10)
+2026-11-11T18:59:32+08:00 round=2 delay=20 cfg=20 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T18:59:32+08:00 next: PRE_DELAY=20 (round 3/10)
+2026-11-11T19:01:18+08:00 round=3 delay=20 cfg=20 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T19:01:18+08:00 next: PRE_DELAY=10 (round 4/10)
+2026-11-11T19:02:56+08:00 round=4 delay=10 cfg=10 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T19:02:56+08:00 next: PRE_DELAY=10 (round 5/10)
+2026-11-11T19:04:32+08:00 round=5 delay=10 cfg=10 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T19:04:32+08:00 next: PRE_DELAY=10 (round 6/10)
+2026-11-11T19:06:08+08:00 round=6 delay=10 cfg=10 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T19:06:08+08:00 next: PRE_DELAY=0 (round 7/10)
+2026-11-11T19:07:39+08:00 round=7 delay=0 cfg=0 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T19:07:39+08:00 next: PRE_DELAY=0 (round 8/10)
+2026-11-11T19:09:10+08:00 round=8 delay=0 cfg=0 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T19:09:10+08:00 next: PRE_DELAY=0 (round 9/10)
+2026-11-11T19:10:37+08:00 round=9 delay=0 cfg=0 result=OK why="orientation=(<'right-up'>,)" auto_boot=no pdm=0 iio=active iio_nr=0 iio_inst=1 reg=1901 last_ok="OK: orientation=(<'right-up'>,)"
+2026-11-11T19:10:37+08:00 === experiment finished (all rounds done) ===

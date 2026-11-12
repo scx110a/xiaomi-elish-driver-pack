@@ -1,0 +1,9 @@
+[Unit]
+Description=Run sensor boot verification report after boot
+
+[Timer]
+OnBootSec=5min
+Unit=sensor-boot-report.service
+
+[Install]
+WantedBy=timers.target

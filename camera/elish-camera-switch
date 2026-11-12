@@ -1,0 +1,3 @@
+#!/bin/bash
+# elish-camera-switch front|rear [--no-gui]
+exec elish-camera-ctl switch "$@"

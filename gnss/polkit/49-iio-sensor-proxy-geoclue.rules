@@ -1,0 +1,14 @@
+// 允许 GeoClue（系统服务用户 geoclue）claim iio-sensor-proxy 的传感器。
+//
+// 背景：iio-sensor-proxy 的 claim-sensor polkit action 默认
+//   allow_any=no / allow_inactive=no / allow_active=yes
+// GeoClue 作为系统服务运行、没有活动会话，因此默认会被拒绝
+// ("Not Authorized: Sensor claim not allowed")，导致 GeoClue 的 compass
+// source 无法工作、Location.heading 为空（地图应用拿不到朝向）。
+// 该规则只放行 geoclue 用户对这一个 action，不影响其它用户/动作。
+polkit.addRule(function(action, subject) {
+    if (action.id == "net.hadess.SensorProxy.claim-sensor" &&
+        subject.user == "geoclue") {
+        return polkit.Result.YES;
+    }
+});

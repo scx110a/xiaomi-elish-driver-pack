@@ -1,0 +1,24 @@
+# 已通过验证的 DTB 中 /fingerprint 节点（dtc 反编译所得，仅作文本参考；phandle 以你的 DTB 为准）
+#
+#   fingerprint {
+#       compatible = "goodix,gf3626";
+#       interrupt-parent = <&tlmm>;              /* 反编译里 phandle 0x3a = tlmm */
+#       interrupts = <23 IRQ_TYPE_EDGE_RISING>;  /* 反编译里 <0x17 0x01> */
+#       reset-gpios = <&tlmm 125 GPIO_ACTIVE_LOW>; /* 反编译里 <0x3a 0x7d 0x01> */
+##       vdd-supply = <&vreg_l10a_3p0>;           /* 反编译里 phandle 0x135 = regulators-0/ldo10
+#                                                   regulator-name="vreg_l10a_3p0"，3.008V（0x2de600）。
+#                                                   注意：树里没有 &pm8150a_l10 这个 label；
+#                                                   DTS 补丁实际创建/使用的是 vreg_l10a_3p0 */
+#       firmware-name = "gfenu";                 /* 注意：二进制里是 "gfenu\0\0\0"（等长填充） */
+#       pinctrl-names = "default";
+#       pinctrl-0 = <&fp_int_default>;           /* IRQ gpio23：drive-strength=2, bias-pull-down */
+#   };
+#
+# 在主线 DTS 源码中重建时，用你的源码树里的实际 label 替换 &tlmm / vreg_l10a_3p0 /
+# pinctrl label（不同内核树/ARM 分支 label 可能不同）。重建后务必跑
+#   ./verify-combined-dtb.sh <新 DTB>
+# 检查 compatible/firmware-name/interrupts 与 qcom,vmids。
+#
+# 二进制改 firmware-name 的方法（长度不变，禁止 dtc 往返）：
+#   python3 patch-firmware-name.py <dtb-in> <dtb-out> gfenu
+# （本目录附带原项目脚本）

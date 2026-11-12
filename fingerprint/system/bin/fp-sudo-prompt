@@ -1,0 +1,13 @@
+#!/bin/sh
+# pam_exec auth hook: signal the user-session watcher to show a popup, and
+# spawn a detached closer that clears it as soon as this sudo process exits.
+[ "${PAM_TYPE:-auth}" = "auth" ] || exit 0
+RUNDIR="/run/user/$(id -u)"
+[ -d "$RUNDIR" ] || exit 0
+CMD=$(tr '\0' ' ' < "/proc/$PPID/cmdline" 2>/dev/null | cut -c1-160)
+[ -n "$CMD" ] || CMD="(sudo)"
+printf 'sudo 请求：%s\n\n请把左手食指放在侧边指纹传感器上（8 秒内）\n或继续输入密码' "$CMD" > "$RUNDIR/fp-sudo-prompt.msg" 2>/dev/null
+date +%s%N > "$RUNDIR/fp-sudo-prompt.stamp" 2>/dev/null
+SUDO_PID=$PPID
+/usr/bin/setsid -f /bin/sh -c "while kill -0 $SUDO_PID 2>/dev/null; do sleep 0.2; done; date +%s%N > '$RUNDIR/fp-sudo-prompt.done'" >/dev/null 2>&1
+exit 0

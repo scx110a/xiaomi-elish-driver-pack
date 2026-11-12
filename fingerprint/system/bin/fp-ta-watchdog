@@ -1,0 +1,30 @@
+#!/bin/sh
+# Watch kernel + fprintd journal for Goodix/QSEECOM TA hard-failure signatures
+# and restart the TA loader automatically (debounced by COOLDOWN seconds).
+COOLDOWN=${COOLDOWN:-45}
+UNIT="qsee-app-loader@gfenu.service"
+LOG=/var/log/fp-ta-watchdog.log
+last=0
+logger -t fp-ta-watchdog "started (unit=$UNIT cooldown=${COOLDOWN}s)"
+journalctl -f -o cat -n 0 _TRANSPORT=kernel + SYSLOG_IDENTIFIER=fprintd 2>/dev/null |
+while IFS= read -r line; do
+    case "$line" in
+        *"opening Goodix sensor"*) continue ;;
+        *"Goodix QSEE open failed"*|\
+        *"Goodix QSEE bring-up command"*|\
+        *"Goodix QSEE enroll failed"*|\
+        *"Goodix QSEE identify failed"*|\
+        *"qseecom: scm call failed"*|\
+        *"Device reported an error during verify: QSEE"*|\
+        *"Goodix command"*"returned status"*)
+            now=$(date +%s)
+            if [ $((now - last)) -ge "$COOLDOWN" ]; then
+                last=$now
+                printf '%s TA error: %s\n' "$(date -Is)" "$line" >> "$LOG"
+                logger -t fp-ta-watchdog "TA hard failure detected, restarting $UNIT"
+                systemctl restart "$UNIT" 2>&1 | logger -t fp-ta-watchdog
+                sleep 5
+            fi
+            ;;
+    esac
+done

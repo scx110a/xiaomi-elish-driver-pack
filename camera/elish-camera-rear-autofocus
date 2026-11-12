@@ -1,0 +1,27 @@
+#!/bin/bash
+# Sweep the CN3927V VCM and keep the sharpest focus position.
+set -euo pipefail
+OUT=${1:-/tmp/rear-autofocus.png}
+FOCUS=$(ls /sys/bus/i2c/devices/*/focus 2>/dev/null | head -1)
+[ -n "$FOCUS" ] || { echo "CN3927V focus sysfs not found" >&2; exit 1; }
+
+BEST_POS=512; BEST_SCORE=-1
+for pos in 0 128 256 384 512 640 768 896 1023; do
+    echo "$pos" | tee "$FOCUS" >/dev/null
+    elish-camera-rear-color /tmp/af-scan.png >/dev/null
+    score=$(python3 - /tmp/af-scan.png <<'PY'
+import sys, numpy as np
+from PIL import Image
+im=np.asarray(Image.open(sys.argv[1]).convert('L'),dtype=np.float32)
+gy,gx=np.gradient(im)
+print(float((gx*gx+gy*gy).mean()))
+PY
+)
+    echo "focus=$pos sharpness=$score"
+    if python3 -c "import sys; sys.exit(0 if $score > $BEST_SCORE else 1)"; then
+        BEST_SCORE=$score; BEST_POS=$pos
+    fi
+done
+echo "$BEST_POS" | tee "$FOCUS" >/dev/null
+elish-camera-rear-color "$OUT" >/dev/null
+echo "autofocus: best=$BEST_POS sharpness=$BEST_SCORE -> $OUT"

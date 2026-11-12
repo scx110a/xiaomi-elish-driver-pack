@@ -1,0 +1,14 @@
+[Unit]
+Description=NMEA bridge: gpsd -> GeoClue2 (Airoha AG3335)
+Documentation=file:/usr/local/share/doc/airoha-gnssd/README.md
+After=gpsd.service
+Requires=gpsd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/gps-nmea-share --socket /run/gps-share.sock
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

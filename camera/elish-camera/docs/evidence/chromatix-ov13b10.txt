@@ -1,0 +1,23 @@
+file /tmp/arv/bin/com.qti.sensormodule.elish_ofilm_ov13b10.bin size 80392 0x13a08 Parameter Parser V2.0.0 (1907311
+  section id=0 off=0xe8 size=0xd260
+  section id=1 off=0xd348 size=0x66a0
+  section id=2 off=0x139e8 size=0x20
+nodes: 748 data base: 0xd348
+sensorName             idx=8 off=0xe10 size=0x10 u64=(8534144721107905637, 206986949425) ascii=b'elish_ov13b10'
+resolutionInfo         idx=18 off=0xf30 size=0x20 u64=(1, 18, 1, 19) ascii=b''
+resolutionData         idx=20 off=0xf58 size=0x120 u64=(0, 1, 20, 1176, 3182, 470, 23, 448000000, 1, 1, 4629147925467683237, 4, 1, 21, 19, 0, 0, 22, 51, 23, 0, 0, 0, 0, 0, 177, 0, 178, 0, 179, 0, 180, 1, 181, 1, 182) ascii=b''
+streamConfiguration    idx=21 off=0x1078 size=0x40 u64=(0, 43, 0, 0, 4208, 3120, 10, 1) ascii=b''
+moduleConfiguration    idx=643 off=0x5ba0 size=0x140 u64=(0, 1, 643, 14, 645, 0, 646, 0, 647, 1, 648, 0, 650, 1, 651, 0, 653, 1, 654, 1, 656, 0, 1, 658, 1, 659, 4615714488294070813, 4612136378390124954, 4591870180066957722, 4621819117588971520, 4634081574949371249, 4632146434484485489, 1, 660, 1, 661, 1, 662, 1, 663) ascii=b''
+moduleName             idx=644 off=0x5ce0 size=0x10 u64=(6, 644) ascii=b''
+sensorName             idx=646 off=0x5cf8 size=0x10 u64=(8534144721107905637, 206986949425) ascii=b'elish_ov13b10'
+sensorSlaveAddress     idx=647 off=0x5d08 size=0x0 u64=() ascii=b''
+sensorI2CFrequencyMode idx=648 off=0x5d08 size=0x0 u64=() ascii=b''
+actuatorName           idx=649 off=0x5d08 size=0x10 u64=(21, 649) ascii=b''
+eepromName             idx=652 off=0x5d30 size=0x10 u64=(29, 652) ascii=b''
+laneAssign             idx=659 off=0x5db8 size=0x8 u64=(12816,) ascii=b''
+isComboMode            idx=660 off=0x5dc0 size=0x8 u64=(0,) ascii=b''
+maxRollDegree          idx=661 off=0x5dc8 size=0x8 u64=(4645040803167600640,) ascii=b''
+maxPitchDegree         idx=662 off=0x5dd0 size=0x8 u64=(4645040803167600640,) ascii=b''
+maxYawDegree           idx=663 off=0x5dd8 size=0x8 u64=(4645040803167600640,) ascii=b''
+actuatorName           idx=666 off=0x5e08 size=0x18 u64=(7954306269083954277, 3564158609848940851, 808542771) ascii=b'elish_cn3927_ov13b10'
+EEPROMName             idx=697 off=0x6148 size=0x20 u64=(7381223216501058661, 3688859790507601001, 3761187808567374178, 875979123) ascii=b'elish_ofilm_ov13b10_bl24sa64'

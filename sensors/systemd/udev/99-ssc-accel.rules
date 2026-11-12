@@ -1,0 +1,2 @@
+# 启用 SSC 加速度计（iio-sensor-proxy 上游默认 disabled）
+SUBSYSTEM=="misc", KERNEL=="fastrpc-sdsp*", ENV{IIO_SENSOR_PROXY_TYPE}+="ssc-accel"

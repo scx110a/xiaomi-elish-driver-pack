@@ -1,0 +1,99 @@
+#!/bin/bash
+# Capture rear OV13B10 raw, run simple AE/AWB, save color PNG.
+set -euo pipefail
+OUT=${1:-/tmp/rear-color.png}
+W=${W:-2104}; H=${H:-1560}; ROTATE=${ROTATE:-270}; AE=${AE:-1}; FULL=${FULL:-0}
+elish-camera-rear-init >/dev/null
+SENSOR_DEV=$(media-ctl -p -d /dev/media0 | awk '/entity [0-9]+: ov13b10/ {f=1} f && /device node name/ {print $NF; exit}')
+VIDEO=${VIDEO:-/dev/video1}
+RAW=$(mktemp /tmp/rear-raw.XXXXXX)
+trap 'rm -f "$RAW"' EXIT
+capture() { v4l2-ctl -d "$VIDEO" --stream-mmap --stream-count=1 --stream-to="$RAW" >/dev/null; }
+setctrl() { v4l2-ctl -d "$SENSOR_DEV" --set-ctrl="exposure=$1,analogue_gain=$2,digital_gain=$3" >/dev/null; }
+
+if [ "$AE" = 1 ]; then
+  python3 - "$SENSOR_DEV" "$VIDEO" "$RAW" "$W" "$H" <<'PY'
+import sys, numpy as np, subprocess
+sensor,video,raw,w,h=sys.argv[1:]
+w=int(w); h=int(h)
+def setc(e,g,d):
+    subprocess.run(['v4l2-ctl','-d',sensor,'--set-ctrl',f'exposure={e},analogue_gain={g},digital_gain={d}'],stdout=subprocess.DEVNULL,check=True)
+def cap():
+    subprocess.run(['v4l2-ctl','-d',video,'--stream-mmap','--stream-count=1','--stream-to',raw],stdout=subprocess.DEVNULL,check=True)
+    d=np.fromfile(raw,dtype=np.uint8); stride=len(d)//h
+    rows=d[:h*stride].reshape(h,stride); g=rows[:,:(w//4)*5].reshape(h,w//4,5).astype(np.uint16)
+    pix=np.empty((h,w//4,4),dtype=np.uint16)
+    pix[...,0]=(g[...,0]<<2)|(g[...,4]&3); pix[...,1]=(g[...,1]<<2)|((g[...,4]>>2)&3)
+    pix[...,2]=(g[...,2]<<2)|((g[...,4]>>4)&3); pix[...,3]=(g[...,3]<<2)|((g[...,4]>>6)&3)
+    return (pix>>2).astype(np.uint16).reshape(h,w)
+e,g,d=800,512,2048
+for i in range(4):
+    setc(e,g,d); cap()
+    # use green sites for stable AE
+    p=np.fromfile(raw,dtype=np.uint8)
+    # mean from previous cap impossible; parse quick again
+    stride=len(p)//h; rows=p[:h*stride].reshape(h,stride); gg=rows[:,:(w//4)*5].reshape(h,w//4,5).astype(np.uint16)
+    pix=np.empty((h,w//4,4),dtype=np.uint16)
+    pix[...,0]=(gg[...,0]<<2)|(gg[...,4]&3); pix[...,1]=(gg[...,1]<<2)|((gg[...,4]>>2)&3)
+    pix[...,2]=(gg[...,2]<<2)|((gg[...,4]>>4)&3); pix[...,3]=(gg[...,3]<<2)|((gg[...,4]>>6)&3)
+    pix=(pix>>2).astype(np.uint16).reshape(h,w)
+    mean=float((pix[0::2,0::2].mean()+pix[1::2,1::2].mean())/2)
+    print(f'AE iter {i}: exp={e} gain={g} dg={d} mean={mean:.0f}')
+    target=360.0
+    if mean < target*0.85:
+        scale=min(4.0,target/max(mean,1))
+        e=min(1590,int(e*scale))
+        if e>=1590: g=min(1984,int(g*scale))
+        d=min(4095,max(1024,int(d*scale/2)))
+    elif mean > target*1.25:
+        scale=max(0.25,target/max(mean,1))
+        e=max(4,int(e*scale))
+        if e<=4: g=max(128,int(g*scale))
+    else:
+        break
+setc(e,g,d); cap()
+print(f'AE final: exp={e} gain={g} dg={d}')
+PY
+else
+  capture
+fi
+
+python3 - "$RAW" "$OUT" "$W" "$H" "$ROTATE" "$FULL" <<'PY'
+import sys, numpy as np
+from PIL import Image
+raw,out,w,h,rot,full=sys.argv[1],sys.argv[2],int(sys.argv[3]),int(sys.argv[4]),int(sys.argv[5]),int(sys.argv[6])
+d=np.fromfile(raw,dtype=np.uint8); stride=len(d)//h
+rows=d[:h*stride].reshape(h,stride)
+g=rows[:,:(w//4)*5].reshape(h,w//4,5).astype(np.uint16)
+pix=np.empty((h,w//4,4),dtype=np.uint16)
+pix[...,0]=(g[...,0]<<2)|(g[...,4]&3); pix[...,1]=(g[...,1]<<2)|((g[...,4]>>2)&3)
+pix[...,2]=(g[...,2]<<2)|((g[...,4]>>4)&3); pix[...,3]=(g[...,3]<<2)|((g[...,4]>>6)&3)
+pix=(pix>>2).astype(np.uint16).reshape(h,w)
+if full:
+    raw=pix.astype(np.float32)
+    yy,xx=np.indices((h,w))
+    R=(yy%2==0)&(xx%2==1); B=(yy%2==1)&(xx%2==0); G=~(R|B)
+    up=np.roll(raw,1,0); dn=np.roll(raw,-1,0); lf=np.roll(raw,1,1); rt=np.roll(raw,-1,1)
+    ul=np.roll(np.roll(raw,1,0),1,1); ur=np.roll(np.roll(raw,1,0),-1,1)
+    dl=np.roll(np.roll(raw,-1,0),1,1); dr=np.roll(np.roll(raw,-1,0),-1,1)
+    r_h=0.5*(lf+rt); r_v=0.5*(up+dn); r_d=0.25*(ul+ur+dl+dr)
+    b_h=0.5*(lf+rt); b_v=0.5*(up+dn); b_d=0.25*(ul+ur+dl+dr)
+    g_est=np.where(G,raw,0.25*(up+dn+lf+rt))
+    even_row=(yy%2==0); odd_row=~even_row; even_col=(xx%2==0); odd_col=~even_col
+    r_est=np.where(R,raw,np.where(G & even_row & even_col,r_h,np.where(G & odd_row & odd_col,r_v,r_d)))
+    b_est=np.where(B,raw,np.where(G & even_row & even_col,b_v,np.where(G & odd_row & odd_col,b_h,b_d)))
+    r=r_est; gg=g_est; b=b_est
+else:
+    r=pix[0::2,1::2].astype(np.float32)
+    gg=(pix[0::2,0::2].astype(np.float32)+pix[1::2,1::2].astype(np.float32))/2
+    b=pix[1::2,0::2].astype(np.float32)
+# gray-world AWB, clipped means
+mr=np.mean(np.clip(r,0,900)); mg=np.mean(np.clip(gg,0,900)); mb=np.mean(np.clip(b,0,900))
+wr=np.clip(mg/max(mr,1),0.5,4.0); wb=np.clip(mg/max(mb,1),0.5,4.0)
+print(f'AWB mean r={mr:.0f} g={mg:.0f} b={mb:.0f} gains=({wr:.2f},{wb:.2f}) full={full}')
+rgb=np.stack([np.clip(r*wr,0,255),np.clip(gg,0,255),np.clip(b*wb,0,255)],axis=-1).astype(np.uint8)
+im=Image.fromarray(rgb,'RGB')
+if rot: im=im.rotate(rot,expand=True)
+im.save(out); print(im.size)
+PY
+echo "rear color saved: $OUT"

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Elish Camera Settings
+Comment=Choose camera, resolution, frame rate and autofocus
+Exec=/usr/local/bin/elish-camera-ctl panel
+Icon=camera-web
+Terminal=false
+Type=Application
+Categories=AudioVideo;Video;Camera;Settings;

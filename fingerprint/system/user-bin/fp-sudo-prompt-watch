@@ -1,0 +1,23 @@
+#!/bin/sh
+RUNDIR="/run/user/$(id -u)"
+STAMP="$RUNDIR/fp-sudo-prompt.stamp"
+MSG="$RUNDIR/fp-sudo-prompt.msg"
+DONE="$RUNDIR/fp-sudo-prompt.done"
+LAST=""; LASTDONE=""; ZPID=""
+close_popup() { [ -n "$ZPID" ] && kill "$ZPID" 2>/dev/null; ZPID=""; }
+while true; do
+  if [ -r "$STAMP" ]; then
+    CUR=$(cat "$STAMP" 2>/dev/null)
+    if [ -n "$CUR" ] && [ "$CUR" != "$LAST" ]; then
+      LAST="$CUR"; close_popup
+      T=$(cat "$MSG" 2>/dev/null); [ -n "$T" ] || T="sudo 请求：请按指纹"
+      zenity --info --no-markup --title="需要指纹确认" --text="$T" --timeout=12 >/dev/null 2>&1 &
+      ZPID=$!
+    fi
+  fi
+  if [ -r "$DONE" ]; then
+    D=$(cat "$DONE" 2>/dev/null)
+    if [ -n "$D" ] && [ "$D" != "$LASTDONE" ]; then LASTDONE="$D"; close_popup; fi
+  fi
+  sleep 0.25
+done

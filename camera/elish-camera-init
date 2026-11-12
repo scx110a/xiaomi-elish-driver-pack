@@ -1,0 +1,37 @@
+#!/bin/bash
+# Configure the Xiaomi Pad 5 Pro front OV8856 pipeline for raw capture.
+set -euo pipefail
+
+MEDIA=${MEDIA:-/dev/media0}
+VIDEO=${VIDEO:-/dev/video0}
+W=${W:-1640}
+H=${H:-1232}
+FMT=${FMT:-SBGGR10_1X10}
+PIXFMT=${PIXFMT:-pBAA}
+EXPOSURE=${EXPOSURE:-1508}
+ANALOGUE_GAIN=${ANALOGUE_GAIN:-512}
+DIGITAL_GAIN=${DIGITAL_GAIN:-1024}
+
+[ -e "$MEDIA" ] || { echo "missing $MEDIA; are camera modules loaded?" >&2; exit 1; }
+[ -e "$VIDEO" ] || { echo "missing $VIDEO" >&2; exit 1; }
+
+SENSOR_NAME=$(media-ctl -p -d "$MEDIA" | sed -n 's/^.*entity [0-9]*: \(ov8856 [^ ]*\) (.*/\1/p' | head -1)
+[ -n "$SENSOR_NAME" ] || { echo "OV8856 entity not found" >&2; exit 1; }
+SENSOR_DEV=$(media-ctl -p -d "$MEDIA" | awk -v n="$SENSOR_NAME" '$0 ~ ("entity [0-9]+: " n " ") {f=1} f && /device node name/ {print $NF; exit}')
+v4l2-ctl -d "$SENSOR_DEV" --set-ctrl=vertical_flip=1 >/dev/null 2>&1 || true
+
+media-ctl -d "$MEDIA" -l '"msm_csiphy4":1->"msm_csid0":0[1]' >/dev/null
+media-ctl -d "$MEDIA" -l '"msm_csid0":1->"msm_vfe0_rdi0":0[1]' >/dev/null
+
+media-ctl -d "$MEDIA" -V "\"$SENSOR_NAME\":0 [fmt:${FMT}/${W}x${H}]" >/dev/null
+media-ctl -d "$MEDIA" -V '"msm_csiphy4":0 [fmt:'"${FMT}/${W}x${H}"']' >/dev/null
+media-ctl -d "$MEDIA" -V '"msm_csid0":0 [fmt:'"${FMT}/${W}x${H}"']' >/dev/null
+media-ctl -d "$MEDIA" -V '"msm_csid0":1 [fmt:'"${FMT}/${W}x${H}"']' >/dev/null
+media-ctl -d "$MEDIA" -V '"msm_vfe0_rdi0":0 [fmt:'"${FMT}/${W}x${H}"']' >/dev/null
+
+v4l2-ctl -d "$SENSOR_DEV" --set-ctrl=exposure="$EXPOSURE" >/dev/null 2>&1 || true
+v4l2-ctl -d "$SENSOR_DEV" --set-ctrl=analogue_gain="$ANALOGUE_GAIN" >/dev/null 2>&1 || true
+v4l2-ctl -d "$SENSOR_DEV" --set-ctrl=digital_gain="$DIGITAL_GAIN" >/dev/null 2>&1 || true
+
+v4l2-ctl -d "$VIDEO" --set-fmt-video=width="$W",height="$H",pixelformat="$PIXFMT" >/dev/null
+echo "camera ready: sensor=$SENSOR_NAME subdev=$SENSOR_DEV video=$VIDEO ${W}x${H} ${FMT} exp=$EXPOSURE ag=$ANALOGUE_GAIN dg=$DIGITAL_GAIN"

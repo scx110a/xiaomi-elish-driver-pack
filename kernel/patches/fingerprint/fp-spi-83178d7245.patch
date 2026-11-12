@@ -1,0 +1,84 @@
+From 83178d7245d1a06e01f7202225037d5644f29041 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Dawid=20Wr=C3=B3bel?= <me@dawidwrobel.com>
+Date: Tue, 11 Aug 2026 00:46:52 +0200
+Subject: [PATCH] arm64: dts: qcom: sm8250-xiaomi-elish: add the Goodix
+ fingerprint sensor
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The sensor sits on a TrustZone-owned SPI bus, so only its supply, reset
+and interrupt lines are driven from the non-secure world. Describe those
+and leave the bus to the secure side.
+
+Both boards in this family carry the sensor on the same pins and rail,
+and load the same trusted application, so describe it once in the common
+device tree.
+
+The board is dual-sourced: it carries either this Goodix part or an FPC
+FPC1020, on the same reset and interrupt pins but a different supply.
+The downstream device tree describes both and lets whichever driver
+finds its sensor win; describe the Goodix part alone, which is what this
+supports.
+
+Signed-off-by: Dawid Wróbel <me@dawidwrobel.com>
+---
+ .../dts/qcom/sm8250-xiaomi-elish-common.dtsi  | 31 ++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi b/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
+index c017399297b9d5..09e1caff80d70b 100644
+--- a/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi
+@@ -85,6 +85,21 @@
+ 		regulator-boot-on;
+ 	};
+ 
++	fingerprint {
++		compatible = "goodix,gf3626";
++
++		interrupt-parent = <&tlmm>;
++		interrupts = <23 IRQ_TYPE_EDGE_RISING>;
++
++		reset-gpios = <&tlmm 125 GPIO_ACTIVE_LOW>;
++		vdd-supply = <&vreg_l10a_3p0>;
++
++		firmware-name = "gfenu";
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&fp_int_default>;
++	};
++
+ 	gpio_keys: gpio-keys {
+ 		compatible = "gpio-keys";
+ 
+@@ -316,7 +331,14 @@
+ 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+ 		};
+ 
+-		/* L10 is unused, L11 - lcx.lvl (ARC) */
++		vreg_l10a_3p0: ldo10 {
++			regulator-name = "vreg_l10a_3p0";
++			regulator-min-microvolt = <3008000>;
++			regulator-max-microvolt = <3008000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		/* L11 - lcx.lvl (ARC) */
+ 
+ 		vreg_l12a_1p8: ldo12 {
+ 			regulator-name = "vreg_l12a_1p8";
+@@ -799,6 +821,13 @@
+ 		bias-pull-up;
+ 	};
+ 
++	fp_int_default: fp-int-default-state {
++		pins = "gpio23";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-down;
++	};
++
+ 	wlan_en_state: wlan-default-state {
+ 		pins = "gpio20";
+ 		function = "gpio";

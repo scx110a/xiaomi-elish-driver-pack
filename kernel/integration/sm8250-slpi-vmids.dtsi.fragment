@@ -1,0 +1,13 @@
+// 统一 DTB 中的传感器 SLPI fastrpc vmids（历史补丁；候选表已兜底，保留以兼容旧 DTB）
+// 位置：arch/arm64/boot/dts/qcom/sm8250.dtsi 的 SLPI glink-edge/fastrpc 节点
+// 需要 #include <dt-bindings/firmware/qcom,scm.h>
+//
+// 注意：当前内核树 DTS 不完整，不能直接重编 DTB；本文件仅作完整 Armbian 基线重建时的参考。
+&slpi {
+	glink-edge {
+		fastrpc {
+			qcom,vmids = <QCOM_SCM_VMID_HLOS QCOM_SCM_VMID_MSS_MSA
+				      QCOM_SCM_VMID_SSC_Q6 QCOM_SCM_VMID_ADSP_Q6>;
+		};
+	};
+};

@@ -1,0 +1,62 @@
+diff --git a/hexagonrpcd/rpcd.c b/hexagonrpcd/rpcd.c
+index 1331803..3ae73f0 100644
+--- a/hexagonrpcd/rpcd.c
++++ b/hexagonrpcd/rpcd.c
+@@ -1,3 +1,4 @@
++#include <time.h>
+ /*
+  * FastRPC Example
+  *
+@@ -233,6 +234,21 @@ err:
+ 	return NULL;
+ }
+ 
++static int attach_retry(int fd, int sns)
++{
++	int ret, tries = 0;
++	struct timespec ts = {0, 50000};
++	do {
++		ret = ioctl(fd, sns ? FASTRPC_IOCTL_INIT_ATTACH_SNS : FASTRPC_IOCTL_INIT_ATTACH, NULL);
++		if (!ret)
++			return 0;
++		if (errno != EPERM)
++			return ret;
++		nanosleep(&ts, NULL);
++	} while (++tries < 2000);
++	return ret;
++}
++
+ int main(int argc, char* argv[])
+ {
+ 	char *fastrpc_node = NULL;
+@@ -287,16 +303,27 @@ int main(int argc, char* argv[])
+ 
+ 	printf("Starting %s (%s) on %s\n", argv[0], attach_sns? "INIT_ATTACH_SNS": "INIT_ATTACH", fastrpc_node);
+ 
+-	fd = open(fastrpc_node, O_RDWR);
++	if (getenv("HEXAGONRPC_WARM_ATTACH")) {
++		struct timespec ts = {0, 20000};
++		int tries = 0;
++		do {
++			fd = open(fastrpc_node, O_RDWR);
++			if (fd >= 0)
++				break;
++			nanosleep(&ts, NULL);
++		} while (++tries < 50000);
++	} else {
++		fd = open(fastrpc_node, O_RDWR);
++	}
+ 	if (fd < 0) {
+ 		fprintf(stderr, "Could not open FastRPC node (%s): %s\n", fastrpc_node, strerror(errno));
+ 		goto err_free_pids;
+ 	}
+ 
+ 	if (attach_sns)
+-		ret = ioctl(fd, FASTRPC_IOCTL_INIT_ATTACH_SNS, NULL);
++		ret = attach_retry(fd, 1);
+ 	else
+-		ret = ioctl(fd, FASTRPC_IOCTL_INIT_ATTACH, NULL);
++		ret = attach_retry(fd, 0);
+ 	if (ret) {
+ 		fprintf(stderr, "Could not attach to FastRPC node: %s\n", strerror(errno));
+ 		goto err_close_dev;

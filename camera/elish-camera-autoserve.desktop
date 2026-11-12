@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Elish Camera Backend
+Comment=Start the elish-camera autoserve backend (front/rear virtual cameras + PipeWire nodes)
+Exec=/usr/local/bin/elish-camera-autostart
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

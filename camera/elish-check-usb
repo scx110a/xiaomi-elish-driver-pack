@@ -1,0 +1,8 @@
+#!/bin/bash
+echo "== 重启后 USB 键盘检查 =="
+echo "uptime: $(cut -d' ' -f1 /proc/uptime) s"
+echo "usb 1-1 事件总数: $(journalctl -k 2>/dev/null | grep -c 'usb 1-1')  (正常应为 1 次枚举)"
+journalctl -k -o short-precise 2>/dev/null | grep -E 'usb 1-1' | tail -10
+echo; echo "键盘设备:"; for e in /dev/input/event*; do n=$(cat /sys/class/input/$(basename "$e")/device/name 2>/dev/null); case "$n" in *Keyboard*) echo "  $(basename "$e"): $n";; esac; done
+echo; echo "平板模式开关:"; /usr/local/bin/elish-hall-monitor 1 2>/dev/null | grep -E 'gpio-keys|STATE' | head -3
+echo; echo "自动旋转/方向:"; gdbus call --session --dest org.gnome.Mutter.DisplayConfig --object-path /org/gnome/Mutter/DisplayConfig --method org.freedesktop.DBus.Properties.Get org.gnome.Mutter.DisplayConfig PanelOrientationManaged 2>/dev/null

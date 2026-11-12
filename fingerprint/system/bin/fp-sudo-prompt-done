@@ -1,0 +1,14 @@
+#!/bin/sh
+# pam_exec session hook: close the fingerprint popup as soon as authentication
+# succeeded, before the requested command runs/finishes.
+[ "${PAM_TYPE:-}" = "open_session" ] || exit 0
+U=${PAM_RUSER:-${PAM_USER:-${USER}}}
+UIDN=$(id -u "$U" 2>/dev/null) || exit 0
+for D in "/run/user/$UIDN"; do
+    [ -d "$D" ] || continue
+    if date +%s%N > "$D/fp-sudo-prompt.done" 2>/dev/null; then
+        chmod 0666 "$D/fp-sudo-prompt.done" 2>/dev/null
+        break
+    fi
+done
+exit 0

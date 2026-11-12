@@ -1,0 +1,107 @@
+--- a/drivers/power/supply/qcom_pm8150b_charger.c
++++ b/drivers/power/supply/qcom_pm8150b_charger.c
+@@ -11,6 +11,7 @@
+ 
+ #include <linux/bits.h>
+ #include <linux/devm-helpers.h>
++#include <linux/delay.h>
+ #include <linux/iio/consumer.h>
+ #include <linux/interrupt.h>
+ #include <linux/kernel.h>
+@@ -195,6 +196,9 @@
+ #define SNK_RP_3P0_BIT				BIT(1)
+ #define SNK_RP_SHORT_BIT			BIT(0)
+ 
++#define LEGACY_CABLE_STATUS			0x50D
++#define TYPEC_LEGACY_CABLE_STATUS_BIT		BIT(1)
++
+ #define TYPE_C_MODE_CFG				0x544
+ #define TYPEC_TRY_MODE_MASK			GENMASK(4, 3)
+ #define EN_TRY_SNK_BIT				BIT(4)
+@@ -793,6 +797,67 @@
+ 	return 0;
+ }
+ 
++/*
++ * Android's smb5_configure_typec() resets stale Type-C legacy-cable
++ * detection after a warm reboot or suspend/resume. The PMIC can latch
++ * the legacy flag because VBUS is present before CC attach/detach,
++ * leaving the port stuck in source role and the charger at 100mA.
++ * Do the same disable/dual toggle here.
++ */
++static int smb5_configure_typec(struct smb5_chip *chip)
++{
++	unsigned int val;
++	int rc;
++
++	rc = regmap_read(chip->regmap, chip->base + LEGACY_CABLE_STATUS, &val);
++	if (rc < 0)
++		return rc;
++	if (!(val & TYPEC_LEGACY_CABLE_STATUS_BIT))
++		return 0;
++
++	dev_info(chip->dev, "resetting stale Type-C legacy cable detection\n");
++
++	rc = regmap_update_bits(chip->regmap, chip->base + TYPE_C_MODE_CFG,
++				TYPEC_POWER_ROLE_CMD_MASK, TYPEC_DISABLE_CMD_BIT);
++	if (rc < 0)
++		return rc;
++	msleep(50);
++
++	rc = regmap_update_bits(chip->regmap, chip->base + TYPE_C_MODE_CFG,
++				TYPEC_POWER_ROLE_CMD_MASK, 0);
++	if (rc < 0)
++		return rc;
++	msleep(20);
++
++	/* restore the sink-preferring try mode used by smb5_init_seq */
++	return regmap_update_bits(chip->regmap, chip->base + TYPE_C_MODE_CFG,
++				  EN_TRY_SNK_BIT | EN_SNK_ONLY_BIT,
++				  EN_TRY_SNK_BIT);
++}
++
++static int smb5_resume(struct device *dev)
++{
++	struct smb5_chip *chip = dev_get_drvdata(dev);
++	int rc;
++
++	/* Restore charger/Type-C registers lost across s2idle. */
++	rc = smb5_init_hw(chip);
++	if (rc)
++		return rc;
++
++	rc = smb5_configure_typec(chip);
++	if (rc)
++		return rc;
++
++	/* Re-run APSD/AICL and let the power supply class update userspace. */
++	schedule_delayed_work(&chip->status_change_work, 0);
++	return 0;
++}
++
++static const struct dev_pm_ops smb5_pm_ops = {
++	.resume = smb5_resume,
++};
++
+ static int smb5_init_irq(struct smb5_chip *chip, int *irq, const char *name,
+ 			 irqreturn_t (*handler)(int irq, void *data))
+ {
+@@ -854,6 +919,10 @@
+ 	if (rc < 0)
+ 		return rc;
+ 
++	rc = smb5_configure_typec(chip);
++	if (rc < 0)
++		return rc;
++
+ 	supply_config.drv_data = chip;
+ 	supply_config.fwnode = dev_fwnode(&pdev->dev);
+ 
+@@ -930,6 +999,7 @@
+ 	.driver = {
+ 		.name = "qcom-pm8150b-charger",
+ 		.of_match_table = smb5_match_id_table,
++		.pm = &smb5_pm_ops,
+ 		},
+ };
+ 

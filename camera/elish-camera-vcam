@@ -1,0 +1,89 @@
+#!/bin/bash
+# Feed the front OV8856 (software-debayered color) into a v4l2loopback virtual camera.
+set -euo pipefail
+
+DEV=${VCAM_DEV:-}
+if [ -z "$DEV" ]; then
+    for f in /sys/class/video4linux/video*/name; do
+        if [ "$(cat "$f" 2>/dev/null)" = "Elish Front Camera" ]; then
+            DEV=/dev/$(basename "$(dirname "$f")"); break
+        fi
+    done
+fi
+[ -n "$DEV" ] || { echo "Elish Front Camera v4l2loopback device not found." >&2; exit 1; }
+command -v ffmpeg >/dev/null || { echo "ffmpeg missing" >&2; exit 1; }
+
+ANALOGUE_GAIN=${ANALOGUE_GAIN:-1536} DIGITAL_GAIN=${DIGITAL_GAIN:-2048} elish-camera-init >/dev/null
+
+exec python3 - "$DEV" "${VCAM_FPS:-15}" "${WB_R:-1.8}" "${WB_B:-1.5}" <<'PY'
+import sys, os, signal, subprocess, numpy as np
+from PIL import Image
+
+dev, fps, wbr, wbb = sys.argv[1], int(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4])
+w, h = 1640, 1232
+frame_bytes = 2542848
+out_w, out_h = 640, 480
+
+ff = subprocess.Popen([
+    'ffmpeg','-hide_banner','-loglevel','error',
+    '-f','rawvideo','-pix_fmt','yuyv422','-s',f'{out_w}x{out_h}','-r',str(fps),'-i','-',
+    '-f','v4l2',dev
+], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+cap = subprocess.Popen(['v4l2-ctl','-d','/dev/video0','--stream-mmap','--stream-to=-'],
+                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
+
+def stop(signum=None, frame=None):
+    try: cap.terminate()
+    except Exception: pass
+    try: ff.terminate()
+    except Exception: pass
+    raise SystemExit(0)
+
+signal.signal(signal.SIGTERM, stop)
+signal.signal(signal.SIGINT, stop)
+
+def read_frame():
+    buf = bytearray(frame_bytes)
+    view = memoryview(buf)
+    pos = 0
+    while pos < frame_bytes:
+        chunk = os.read(cap.stdout.fileno(), frame_bytes - pos)
+        if not chunk:
+            return None
+        view[pos:pos+len(chunk)] = chunk
+        pos += len(chunk)
+    return buf
+
+while True:
+    buf = read_frame()
+    if buf is None:
+        break
+    rows = np.frombuffer(buf, dtype=np.uint8)[:h*2064].reshape(h,2064)
+    g = rows[:,:2050].reshape(h,410,5).astype(np.uint16)
+    pix = np.empty((h,410,4), dtype=np.uint16)
+    pix[...,0] = (g[...,0]<<2) | (g[...,4]&3)
+    pix[...,1] = (g[...,1]<<2) | ((g[...,4]>>2)&3)
+    pix[...,2] = (g[...,2]<<2) | ((g[...,4]>>4)&3)
+    pix[...,3] = (g[...,3]<<2) | ((g[...,4]>>6)&3)
+    pix = (pix>>2).astype(np.uint16).reshape(h,w)
+    # BGGR: row0 B G, row1 G R (module patch + VFLIP)
+    b = pix[0::2,0::2].astype(np.float32)
+    gg = (pix[0::2,1::2].astype(np.float32)+pix[1::2,0::2].astype(np.float32))/2
+    r = pix[1::2,1::2].astype(np.float32)
+    rgb = np.stack([np.clip(r*wbr,0,255),np.clip(gg,0,255),np.clip(b*wbb,0,255)],axis=-1).astype(np.uint8)
+    im = Image.fromarray(rgb,'RGB').resize((out_w,out_h), Image.BILINEAR)
+    a = np.asarray(im).astype(np.float32)
+    R,G,B = a[...,0],a[...,1],a[...,2]
+    Y = 0.299*R + 0.587*G + 0.114*B
+    U = -0.169*R - 0.331*G + 0.5*B + 128.0
+    V = 0.5*R - 0.419*G - 0.081*B + 128.0
+    yuyv = np.empty((out_h,out_w*2), dtype=np.uint8)
+    yuyv[:,0::4] = np.clip(Y[:,0::2],0,255)
+    yuyv[:,1::4] = np.clip(U[:,0::2],0,255)
+    yuyv[:,2::4] = np.clip(Y[:,1::2],0,255)
+    yuyv[:,3::4] = np.clip(V[:,0::2],0,255)
+    try:
+        ff.stdin.write(yuyv.tobytes()); ff.stdin.flush()
+    except BrokenPipeError:
+        break
+PY

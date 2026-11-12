@@ -1,0 +1,16 @@
+#%PAM-1.0
+
+# Set up user limits from /etc/security/limits.conf.
+session    required   pam_limits.so
+
+session    required   pam_env.so readenv=1 user_readenv=0
+session    required   pam_env.so readenv=1 envfile=/etc/default/locale user_readenv=0
+
+# [fingerprint sudo] disabled: session    required   pam_exec.so /usr/local/bin/sudo-notify
+auth	optional	pam_exec.so /usr/local/bin/fp-sudo-prompt
+# fingerprint OR password (either is enough): fingerprint first, 8s timeout, then password fallback
+auth	[success=done default=ignore]	pam_fprintd.so max-tries=1 timeout=8
+@include common-auth
+@include common-account
+session	optional	pam_exec.so /usr/local/bin/fp-sudo-prompt-done
+@include common-session-noninteractive

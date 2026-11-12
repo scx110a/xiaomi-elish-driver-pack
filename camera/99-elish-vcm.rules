@@ -1,0 +1,2 @@
+# Allow the video group to control the rear CN3927V VCM focus position.
+ACTION=="add|change", SUBSYSTEM=="i2c", KERNEL=="20-000c", RUN+="/bin/sh -c 'chgrp video /sys/bus/i2c/devices/20-000c/focus 2>/dev/null; chmod 0664 /sys/bus/i2c/devices/20-000c/focus 2>/dev/null'"

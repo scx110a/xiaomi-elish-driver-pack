@@ -1,0 +1,102 @@
+From 67c403b7152ae01eda92058ffa5490f9538731d1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Dawid=20Wr=C3=B3bel?= <me@dawidwrobel.com>
+Date: Wed, 5 Aug 2026 12:44:26 +0200
+Subject: [PATCH] dt-bindings: input: add Goodix fingerprint sensor
+
+Document the resources the operating system drives on a Goodix fingerprint
+sensor: its supply, its reset line and its interrupt. Where the sensor's SPI bus
+belongs to the secure world, imaging and matching are performed there and the
+SPI controller is not described to the operating system, so this node is all of
+the sensor the operating system sees. firmware-name then names the trusted
+application paired with the sensor on a given board.
+
+Goodix ships one downstream driver for these sensors, taking the same supply,
+reset line and interrupt for gf3208, gf3626 and gf5228 alike and matching
+"goodix,fingerprint" throughout. The binding therefore covers the family, while
+the compatible names the part. gf3626 is the only part tested so far; others
+should be added as they are.
+
+Assisted-by: Claude:claude-opus-5
+---
+ .../bindings/input/goodix-fingerprint.yaml    | 72 +++++++++++++++++++
+ 1 file changed, 72 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/input/goodix-fingerprint.yaml
+
+diff --git a/Documentation/devicetree/bindings/input/goodix-fingerprint.yaml b/Documentation/devicetree/bindings/input/goodix-fingerprint.yaml
+new file mode 100644
+index 00000000000000..09e82a22ddade2
+--- /dev/null
++++ b/Documentation/devicetree/bindings/input/goodix-fingerprint.yaml
+@@ -0,0 +1,72 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/input/goodix-fingerprint.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Goodix fingerprint sensor
++
++maintainers:
++  - Dawid Wróbel <me@dawidwrobel.com>
++
++description: >
++  A Goodix fingerprint sensor, described by the resources the operating system
++  drives: the sensor's supply, its reset line and its interrupt.
++
++  Where the sensor's SPI bus belongs to the secure world, image capture,
++  template construction and matching are performed there by a trusted
++  application, the SPI controller is not described to the operating system, and
++  this node is all of the sensor that the operating system sees.
++
++  The same properties describe the rest of the range. Only the compatibles
++  listed have been tested; others should be added as they are.
++
++properties:
++  compatible:
++    const: goodix,gf3626
++
++  interrupts:
++    maxItems: 1
++    description: Finger down and up events.
++
++  reset-gpios:
++    maxItems: 1
++
++  vdd-supply:
++    description: Sensor supply, kept enabled while the sensor is in use.
++
++  firmware-name:
++    maxItems: 1
++    description: >
++      Where the sensor is driven from the secure world, the name of the trusted
++      application that drives it, as loaded there. The pairing is a property of
++      the board rather than of the sensor part, because the application is built
++      and signed per device.
++
++required:
++  - compatible
++  - interrupts
++  - reset-gpios
++  - vdd-supply
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++    #include <dt-bindings/interrupt-controller/irq.h>
++
++    fingerprint {
++        compatible = "goodix,gf3626";
++
++        interrupt-parent = <&tlmm>;
++        interrupts = <23 IRQ_TYPE_EDGE_RISING>;
++
++        reset-gpios = <&tlmm 125 GPIO_ACTIVE_LOW>;
++        vdd-supply = <&vreg_l10a_3p0>;
++
++        firmware-name = "gfenu";
++
++        pinctrl-names = "default";
++        pinctrl-0 = <&fp_int_default>;
++    };

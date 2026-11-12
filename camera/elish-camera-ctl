@@ -1,0 +1,269 @@
+#!/bin/bash
+# elish-camera-ctl - manage the elish camera backend.
+#
+# The backend keeps BOTH virtual cameras alive:
+#   /dev/video2  (front)  and  /dev/video20 (rear)
+# Opening either device from any application selects that camera automatically
+# (the two sensors cannot stream at the same time, so the backend routes the
+# single active sensor to the device being used).
+#
+#   elish-camera-ctl start [--front-size WxH] [--front-fps N]
+#                          [--rear-size WxH] [--rear-fps N] [--autofocus]
+#   elish-camera-ctl rotate front|rear <0|90|180|270|auto>  # fix direction
+#   elish-camera-ctl gui [front|rear]     # open Guvcview on that device
+#   elish-camera-ctl switch front|rear    # alias for gui
+#   elish-camera-ctl panel                # settings dialog (zenity)
+#   elish-camera-ctl orientation [tablet on|off|auto] [rebuild idle|live|off]
+#                                         # auto-rotate / stream rebuild settings
+#   elish-camera-ctl status
+#   elish-camera-ctl stop
+set -u
+
+CACHE=${XDG_CACHE_HOME:-$HOME/.cache}
+mkdir -p "$CACHE"
+CONF=$CACHE/elish-camera.conf
+PIDF=$CACHE/elish-camera-autoserve.pid
+LOG=$CACHE/elish-camera-autoserve.log
+
+# defaults / saved configuration
+front_size=3280x2464
+front_fps=30
+rear_size=4208x3120
+rear_fps=30
+autofocus=1
+front_rotate=auto
+rear_rotate=auto
+if [ -f "$CONF" ]; then . "$CONF"; fi
+
+usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+dev_for() { [ "$1" = rear ] && echo /dev/video20 || echo /dev/video2; }
+format_ok() { v4l2-ctl -d "$1" --get-fmt-video >/dev/null 2>&1; }
+
+save_conf() {
+    {
+        echo "front_size=$front_size"
+        echo "front_fps=$front_fps"
+        echo "rear_size=$rear_size"
+        echo "rear_fps=$rear_fps"
+        echo "autofocus=$autofocus"
+        echo "front_rotate=$front_rotate"
+        echo "rear_rotate=$rear_rotate"
+    } >"$CONF"
+}
+
+ORIENT_CONF=/etc/elish-orientation.conf
+
+orient_get() { # $1 key, $2 default
+    local v
+    v=$(sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$ORIENT_CONF" 2>/dev/null | tail -1 | tr -d '\r')
+    echo "${v:-$2}"
+}
+
+orient_set() { # $1 key, $2 value
+    local k=$1 v=$2 tmp
+    tmp=$(mktemp)
+    if [ -f "$ORIENT_CONF" ]; then
+        sed "/^[[:space:]]*$k[[:space:]]*=/d" "$ORIENT_CONF" >"$tmp"
+    fi
+    { cat "$tmp"; echo "$k=$v"; } | tee "$ORIENT_CONF" >/dev/null || {
+        rm -f "$tmp"; echo "cannot write $ORIENT_CONF（检查该文件组可写：chgrp <user组> + chmod 0664）" >&2; return 1; }
+    rm -f "$tmp"
+}
+
+orientation_show() {
+    echo "tablet_mode=$(orient_get tablet_mode on)   (on=always auto-rotate, off=never, auto=follow magnet)"
+    echo "rebuild_mode=$(orient_get rebuild_mode idle) (idle=rebuild when cameras idle, live=rebuild now + restart Snapshot, off=never)"
+}
+
+stop_backend() {
+    if [ -f "$PIDF" ]; then
+        kill "$(cat "$PIDF")" 2>/dev/null || true
+        rm -f "$PIDF"
+    fi
+    systemctl stop elish-camera@front elish-camera@rear 2>/dev/null || true
+    pkill -x elish-camera 2>/dev/null || true
+    sleep 0.4
+}
+
+start_backend() {
+    stop_backend
+    local args="--front-size $front_size --front-fps $front_fps --rear-size $rear_size --rear-fps $rear_fps"
+    [ "$autofocus" = 1 ] && args="$args --autofocus"
+    case "$front_rotate" in 0|90|180|270) args="$args --rotate-front $front_rotate" ;; esac
+    case "$rear_rotate" in 0|90|180|270) args="$args --rotate-rear $rear_rotate" ;; esac
+    setsid nohup elish-camera autoserve $args >"$LOG" 2>&1 &
+    echo $! >"$PIDF"
+    for _ in $(seq 1 100); do
+        if format_ok /dev/video2 && format_ok /dev/video20; then
+            break
+        fi
+        sleep 0.2
+    done
+    save_conf
+    echo "backend: pid=$(cat "$PIDF")  front=/dev/video2 $front_size@${front_fps}  rear=/dev/video20 $rear_size@${rear_fps} autofocus=$autofocus"
+    echo "open either device from any app; the backend switches the sensor automatically"
+}
+
+running() {
+    [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null
+}
+
+ensure_backend() {
+    running || start_backend
+}
+
+launch_gui() {
+    local cam=${1:-front} dev
+    dev=$(dev_for "$cam")
+    ensure_backend >/dev/null
+    pkill -x guvcview 2>/dev/null || true
+    sleep 0.5
+    export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
+    export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/1000/bus}"
+    export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+    export DISPLAY="${DISPLAY:-:0}"
+    setsid nohup guvcview --device="$dev" >"$CACHE/guvcview.log" 2>&1 &
+    echo "opened Guvcview on $dev ($cam)"
+}
+
+exec_gui() {
+    local cam=${1:-front} dev
+    dev=$(dev_for "$cam")
+    ensure_backend >/dev/null
+    export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
+    export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/1000/bus}"
+    export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+    export DISPLAY="${DISPLAY:-:0}"
+    exec guvcview --device="$dev"
+}
+
+orientation_panel() {
+    command -v zenity >/dev/null || { orientation_show; return 0; }
+    local cur tab reb pick
+    cur=$(orient_get tablet_mode on)
+    tab=$(zenity --list --title="Elish Camera — 自动旋转" \
+        --text="平板模式（GNOME 自动旋转开关）" --radiolist \
+        --column="" --column="模式" \
+        $([ "$cur" = on ] && echo TRUE || echo FALSE) on "总是开（推荐）" \
+        $([ "$cur" = off ] && echo TRUE || echo FALSE) off "总是关" \
+        $([ "$cur" = auto ] && echo TRUE || echo FALSE) auto "跟随磁铁（保护套）" \
+        --hide-column=1 --print-column=2 2>/dev/null) || return 0
+    [ -n "$tab" ] && orient_set tablet_mode "$tab"
+    cur=$(orient_get rebuild_mode idle)
+    reb=$(zenity --list --title="Elish Camera — 旋转重建" \
+        --text="屏幕旋转时如何处理相机流" --radiolist \
+        --column="" --column="方式" \
+        $([ "$cur" = idle ] && echo TRUE || echo FALSE) idle "空闲时重建（不打断正在预览的 App）" \
+        $([ "$cur" = live ] && echo TRUE || echo FALSE) live "立即重建并自动重开 Snapshot" \
+        $([ "$cur" = off ] && echo TRUE || echo FALSE) off "不重建（方向不变）" \
+        --hide-column=1 --print-column=2 2>/dev/null) || return 0
+    [ -n "$reb" ] && orient_set rebuild_mode "$reb"
+    orientation_show
+}
+
+panel() {
+    command -v zenity >/dev/null || { echo "zenity not installed" >&2; exit 1; }
+    local what
+    what=$(zenity --list --title="Elish Camera 设置" --text="选择要设置的项" \
+        --column="设置" "相机分辨率 / 帧率 / 自动对焦" "屏幕方向（自动旋转 / 旋转重建）" 2>/dev/null) || exit 0
+    case "$what" in
+        *屏幕方向*) orientation_panel; return 0 ;;
+        *相机*) ;;
+        *) exit 0 ;;
+    esac
+    local cam size fps af nf
+    cam=$(zenity --list --title="Elish Camera" --text="选择要设置的相机" \
+        --radiolist --column="" --column="相机" TRUE front FALSE rear \
+        --hide-column=1 --print-column=2 2>/dev/null) || exit 0
+    [ -z "$cam" ] && exit 0
+    if [ "$cam" = front ]; then
+        nf="3280x2464 1640x1232"
+        size=$(zenity --list --title="Elish Camera" --text="前摄分辨率 / 帧率（原生模式）" \
+            --column="模式" 3280x2464@30 1640x1232@30 2>/dev/null) || exit 0
+    else
+        size=$(zenity --list --title="Elish Camera" --text="后摄分辨率 / 帧率（原生模式）" \
+            --column="模式" 4208x3120@30 4160x3120@30 4160x2340@30 2104x1560@60 2080x1170@60 1364x768@120 2>/dev/null) || exit 0
+    fi
+    local res=${size%@*} fps=${size#*@}
+    af=0
+    if [ "$cam" = rear ]; then
+        if zenity --question --title="Elish Camera" --text="启用自动对焦？(后摄)" 2>/dev/null; then af=1; fi
+    fi
+    if [ "$cam" = front ]; then
+        front_size=$res; front_fps=$fps
+    else
+        rear_size=$res; rear_fps=$fps; autofocus=$af
+    fi
+    start_backend
+    launch_gui "$cam"
+}
+
+cmd=${1:-}; shift || true
+case "$cmd" in
+    start)
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --front-size) front_size=$2; shift 2 ;;
+                --front-fps) front_fps=$2; shift 2 ;;
+                --rear-size) rear_size=$2; shift 2 ;;
+                --rear-fps) rear_fps=$2; shift 2 ;;
+                --autofocus) autofocus=1; shift ;;
+                *) echo "unknown option $1" >&2; usage ;;
+            esac
+        done
+        start_backend
+        ;;
+    gui) exec_gui "${1:-front}" ;;
+    switch) launch_gui "${1:-front}" ;;
+    rotate)
+        which=${1:-}; ang=${2:-}
+        [ -z "$which" ] || [ -z "$ang" ] && usage
+        if [ "$which" = front ]; then
+            front_rotate=$ang
+        elif [ "$which" = rear ]; then
+            rear_rotate=$ang
+        else
+            usage
+        fi
+        start_backend
+        launch_gui "$which"
+        ;;
+    status)
+        if running; then
+            echo "backend running pid=$(cat "$PIDF")"
+            for d in /dev/video2 /dev/video20; do
+                echo -n "$d: "; v4l2-ctl -d "$d" --get-fmt-video 2>/dev/null | grep -E 'Width/Height|Pixel Format' | tr '\n' ' '; echo
+            done
+            echo "consumers: $(grep -E 'autoserve: (users|v4l2)' "$LOG" | tail -1 | sed 's/.*autoserve: //' || true)"
+            if command -v pw-cli >/dev/null 2>&1; then
+                n=$(pw-cli ls Node 2>/dev/null | grep -c 'node.name = "elish-camera-')
+                echo "pipewire camera nodes: $n (media.role=Camera)"
+            echo "rotation: front=$front_rotate rear=$rear_rotate (auto = follow display orientation)"
+            echo "tablet_mode=$(orient_get tablet_mode on) rebuild_mode=$(orient_get rebuild_mode idle)"
+            fi
+        else
+            echo "not running"
+        fi
+        ;;
+    stop) stop_backend; echo "camera backend stopped" ;;
+    orientation)
+        case "${1:-}" in
+            tablet)
+                case "${2:-}" in on|off|auto) orient_set tablet_mode "$2" ;; *) usage ;; esac
+                orientation_show ;;
+            rebuild)
+                case "${2:-}" in idle|live|off) orient_set rebuild_mode "$2" ;; *) usage ;; esac
+                orientation_show ;;
+            "" )
+                if [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ] && command -v zenity >/dev/null 2>&1; then
+                    orientation_panel
+                else
+                    orientation_show
+                fi
+                ;;
+            * ) orientation_show ;;
+        esac
+        ;;
+    panel) panel ;;
+    *) usage ;;
+esac

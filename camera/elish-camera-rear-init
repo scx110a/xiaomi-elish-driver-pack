@@ -1,0 +1,32 @@
+#!/bin/bash
+# Configure the rear OV13B10 (CSIPHY1 -> CSID0 -> VFE0 RDI1) raw path.
+set -euo pipefail
+MEDIA=${MEDIA:-/dev/media0}
+W=${W:-2104}
+H=${H:-1560}
+FMT=${FMT:-SGRBG10_1X10}
+PIXFMT=${PIXFMT:-pgAA}
+VIDEO=${VIDEO:-/dev/video1}
+
+SENSOR_ENTITY=$(media-ctl -p -d "$MEDIA" | awk '/entity [0-9]+: ov13b10/ {sub(/^.*entity [0-9]+: /,""); sub(/ \(.*/,""); print; exit}')
+[ -n "$SENSOR_ENTITY" ] || { echo "ov13b10 entity not found" >&2; exit 1; }
+SENSOR_DEV=$(media-ctl -p -d "$MEDIA" | awk -v n="$SENSOR_ENTITY" 'index($0, n) && index($0, "entity") {f=1} f && /device node name/ {print $NF; exit}')
+[ -n "$SENSOR_DEV" ] || { echo "ov13b10 subdev not found" >&2; exit 1; }
+
+# enable pipeline links
+media-ctl -d "$MEDIA" -l '"msm_csiphy1":1 -> "msm_csid0":0[1]' 2>/dev/null || true
+media-ctl -d "$MEDIA" -l '"msm_csid0":2 -> "msm_vfe0_rdi1":0[1]' 2>/dev/null || true
+
+# formats
+for spec in \
+  "\"$SENSOR_ENTITY\":0" \
+  '"msm_csiphy1":0' '"msm_csiphy1":1' \
+  '"msm_csid0":0' '"msm_csid0":2' \
+  '"msm_vfe0_rdi1":0' '"msm_vfe0_rdi1":1'; do
+  media-ctl -d "$MEDIA" -V "$spec [fmt:${FMT}/${W}x${H}]"
+done
+v4l2-ctl -d "$VIDEO" --set-fmt-video=width="$W",height="$H",pixelformat="$PIXFMT" >/dev/null
+# rear sensor needs high gain to be usable indoors
+v4l2-ctl -d "$SENSOR_DEV" --set-ctrl=exposure=1590,analogue_gain=1984,digital_gain=4095 >/dev/null 2>&1 || true
+
+echo "rear camera ready: sensor=$SENSOR_ENTITY subdev=$SENSOR_DEV video=$VIDEO ${W}x${H} $FMT"

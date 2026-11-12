@@ -1,0 +1,7 @@
+[Unit]
+Description=Restore iio accelerometer/auto-rotate after suspend
+After=iio-sensor-proxy.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/elish-sensors-resume-worker

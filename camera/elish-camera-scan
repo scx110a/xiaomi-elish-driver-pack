@@ -1,0 +1,97 @@
+#!/bin/bash
+# Capture one frame from the front OV8856 and decode a QR/barcode.
+# Default: try several exposure/gain profiles; override with EXPOSURE/ANALOGUE_GAIN/DIGITAL_GAIN.
+set -euo pipefail
+
+PREVIEW=${1:-/tmp/elish-camera-last.png}
+TMPDIR=$(mktemp -d /tmp/elish-camera-XXXXXX)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+convert_frame() {
+    local raw=$1 out=$2
+    python3 - "$raw" "$out" <<'PY'
+import sys
+import numpy as np
+from PIL import Image, ImageStat
+raw, out = sys.argv[1], sys.argv[2]
+w, h = 1640, 1232
+data = np.fromfile(raw, dtype=np.uint8)
+if data.size < h * (w * 10 // 8):
+    raise SystemExit(f"unexpected frame size {data.size}")
+stride = data.size // h
+rows = data[:h * stride].reshape(h, stride)
+groups = rows[:, :(w // 4) * 5].reshape(h, w // 4, 5).astype(np.uint16)
+pix = np.empty((h, w // 4, 4), dtype=np.uint16)
+pix[..., 0] = (groups[..., 0] << 2) | (groups[..., 4] & 3)
+pix[..., 1] = (groups[..., 1] << 2) | ((groups[..., 4] >> 2) & 3)
+pix[..., 2] = (groups[..., 2] << 2) | ((groups[..., 4] >> 4) & 3)
+pix[..., 3] = (groups[..., 3] << 2) | ((groups[..., 4] >> 6) & 3)
+img = ((pix >> 2).astype(np.uint8)).reshape(h, w)
+im = Image.fromarray(img, 'L').rotate(180)
+im.save(out)
+st = ImageStat.Stat(im)
+print(f"__STAT__ {st.mean[0]:.1f} {st.stddev[0]:.1f}")
+PY
+}
+
+decode_image() {
+    python3 - "$1" <<'PY'
+import sys
+try:
+    import zxingcpp
+    from PIL import Image
+    for r in zxingcpp.read_barcodes(Image.open(sys.argv[1])):
+        print(r.text)
+        break
+except Exception:
+    pass
+PY
+}
+
+try_profile() {
+    local name=$1 exp=$2 ag=$3 dg=$4
+    local raw="$TMPDIR/$name.raw" png="$TMPDIR/$name.png"
+    EXPOSURE=$exp ANALOGUE_GAIN=$ag DIGITAL_GAIN=$dg elish-camera-init >/dev/null
+    if ! timeout 10 v4l2-ctl -d /dev/video0 --stream-mmap --stream-count=1 \
+            --stream-to="$raw" >/dev/null 2>&1; then
+        echo "profile $name: capture failed" >&2
+        return 1
+    fi
+    [ -s "$raw" ] || return 1
+    local stats
+    stats=$(convert_frame "$raw" "$png")
+    local mean sd text
+    mean=$(awk '/__STAT__/{print $2}' <<<"$stats")
+    sd=$(awk '/__STAT__/{print $3}' <<<"$stats")
+    text=$(decode_image "$png" | head -1 || true)
+    if [ -z "$text" ] && command -v zbarimg >/dev/null; then
+        text=$(zbarimg --quiet --raw "$png" 2>/dev/null | head -1 || true)
+    fi
+    echo "profile $name: exp=$exp ag=$ag dg=$dg mean=$mean sd=$sd decode=${text:-none}" >&2
+    if [ -n "$text" ]; then
+        cp "$png" "$PREVIEW"
+        echo "DECODED: $text"
+        return 0
+    fi
+    local score
+    score=$(awk -v s="$sd" 'BEGIN{print s+0}')
+    if [ ! -e "$TMPDIR/best.png" ] || awk -v a="$score" -v b="$(cat "$TMPDIR/best.score" 2>/dev/null || echo 0)" 'BEGIN{exit !(a>b)}'; then
+        cp "$png" "$TMPDIR/best.png"; echo "$score" > "$TMPDIR/best.score"
+    fi
+    return 1
+}
+
+if [ -n "${EXPOSURE:-}" ] || [ -n "${ANALOGUE_GAIN:-}" ] || [ -n "${DIGITAL_GAIN:-}" ]; then
+    EXPOSURE=${EXPOSURE:-1508}; ANALOGUE_GAIN=${ANALOGUE_GAIN:-512}; DIGITAL_GAIN=${DIGITAL_GAIN:-1024}
+    if try_profile manual "$EXPOSURE" "$ANALOGUE_GAIN" "$DIGITAL_GAIN"; then exit 0; fi
+else
+    for p in "screen 1508 512 1024" "screen-dim 1508 1024 1024" "paper 1508 2047 4095" "paper-soft 1508 1024 2048" "bright 1508 128 1024"; do
+        set -- $p
+        if try_profile "$1" "$2" "$3" "$4"; then exit 0; fi
+    done
+fi
+
+if [ -e "$TMPDIR/best.png" ]; then cp "$TMPDIR/best.png" "$PREVIEW"; fi
+echo "preview: $PREVIEW" >&2
+echo "no QR/barcode found" >&2
+exit 1

@@ -1,0 +1,10 @@
+#!/bin/sh
+# systemd sleep hook: after resume, start a transient recovery service (own
+# cgroup, so it is not killed when systemd-sleep finishes).
+case "${1:-}" in
+    post)
+        systemctl --no-block start elish-sensors-resume.service 2>/dev/null || \
+            setsid /usr/local/sbin/elish-sensors-resume-worker >/dev/null 2>&1 &
+        ;;
+esac
+exit 0

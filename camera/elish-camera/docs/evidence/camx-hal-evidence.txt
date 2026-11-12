@@ -1,0 +1,20 @@
+# CamX HAL (vendor/lib64/hw/camera.qcom.so) 相关字符串
+## IFE/CSID/debayer
+      1 camxifecsid.cpp
+      1 camxifedsx10.cpp
+     12 demosaic
+     11 Demosaic
+      5 IFECSID
+      1 is_qcfa_sensor
+     26 Titan480
+## CFA/方向 schema 字符串
+TranslateColorFilterArrangement
+[ERROR]Unable to translate SensorInfoColorFilterArrangementValue = %d to ISP Bayer pattern.Assuming ISPPatternBayerRGRGRG!
+[ VERB]%s %s:437 %s() Node[%s] Camera position mountAngle %d position %d imageOrientation %d
+[ERROR]%s %s:534 %s() Unable to translate SensorInfoColorFilterArrangementValue = %d to ISP Bayer pattern.Assuming ISPPatternBayerRGRGRG!
+[ VERB]%s %s:457 %s() Node[%s] Camera position mountAngle %d position %d imageOrientation %d
+mountAngle
+cameraPosition
+SensorInfoColorFilterArrangement
+TranslateColorFilterPatternToISPPattern
+## 说明: vendor 分区内没有任何文件同时含 mountAngle/ColorFilterArrangement 配置值 (仅 8 个 .so 命中, 见下)

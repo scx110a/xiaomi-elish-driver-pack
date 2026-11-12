@@ -1,0 +1,11 @@
+#!/bin/bash
+# elish-camera-autostart — wait for PipeWire, then start the camera backend.
+set -u
+for _ in $(seq 1 15); do
+    if [ -S "${XDG_RUNTIME_DIR:-/run/user/1000}/pipewire-0" ]; then
+        break
+    fi
+    sleep 1
+done
+sleep 2
+exec /usr/local/bin/elish-camera-ctl start

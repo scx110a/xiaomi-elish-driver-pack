@@ -1,0 +1,11 @@
+[Unit]
+Description=Fingerprint sudo prompt watcher
+[Service]
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_RUNTIME_DIR=%t
+ExecStart=%h/.local/bin/fp-sudo-prompt-watch
+Restart=always
+RestartSec=2
+[Install]
+WantedBy=default.target

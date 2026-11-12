@@ -1,0 +1,31 @@
+--- a/libfprint/drivers/goodixqsee/goodix-qsee.c
++++ b/libfprint/drivers/goodixqsee/goodix-qsee.c
+@@ -148,7 +148,11 @@
+       memset (payload, 0, sequence[i].size);
+       if (!invoke_success (self, sequence[i].command, payload,
+                            sequence[i].size, error))
+-        return FALSE;
++        {
++          fp_warn ("Goodix QSEE bring-up command %u failed: %s",
++                   sequence[i].command, (*error)->message);
++          return FALSE;
++        }
+     }
+   return TRUE;
+ }
+@@ -429,6 +433,15 @@
+       goodix_qsee_qsee_close (&self->qsee);
+       goodix_qsee_sensor_close (&self->sensor);
+     }
++  if (error)
++    {
++      const char *op = work->operation == WORK_OPEN ? "open" :
++                       work->operation == WORK_LIST ? "list" :
++                       work->operation == WORK_DELETE ? "delete" :
++                       work->operation == WORK_ENROLL ? "enroll" :
++                       work->operation == WORK_IDENTIFY ? "identify" : "clear";
++      fp_warn ("Goodix QSEE %s failed: %s", op, error->message);
++    }
+   g_task_return_error (task, g_steal_pointer (&error));
+ }
+ 

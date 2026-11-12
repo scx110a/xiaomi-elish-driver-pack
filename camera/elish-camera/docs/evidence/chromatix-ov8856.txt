@@ -1,0 +1,22 @@
+file /tmp/arv/bin/com.qti.sensormodule.elish_aac_ov8856.bin size 91168 0x16420 Parameter Parser V2.0.0 (1907311
+  section id=0 off=0xe8 size=0xefe8
+  section id=1 off=0xf0d0 size=0x7330
+  section id=2 off=0x16400 size=0x20
+nodes: 853 data base: 0xf0d0
+sensorName             idx=5 off=0xc40 size=0x10 u64=(8534144721107905637, 909457464) ascii=b'elish_ov8856'
+resolutionInfo         idx=15 off=0xd58 size=0x20 u64=(1, 15, 1, 16) ascii=b''
+resolutionData         idx=17 off=0xd80 size=0x120 u64=(0, 1, 17, 1932, 2482, 144, 18, 254400000, 1, 1, 4629145911232749896, 2, 1, 18, 14, 0, 0, 19, 40, 20, 0, 0, 0, 0, 0, 141, 0, 142, 0, 143, 0, 144, 1, 145, 1, 146) ascii=b''
+streamConfiguration    idx=18 off=0xea0 size=0x40 u64=(0, 43, 0, 0, 3264, 2448, 10, 1) ascii=b''
+EEPROMName             idx=789 off=0x6c60 size=0x20 u64=(7016994596637469797, 3906090066970107747, 7364571090362986591, 0) ascii=b'elish_aac_ov8856_p24c64f'
+moduleConfiguration    idx=835 off=0x7148 size=0x140 u64=(2, 1, 835, 13, 837, 0, 838, 0, 839, 0, 840, 0, 841, 1, 842, 0, 844, 0, 845, 1, 846, 1, 1, 848, 1, 849, 4613453681281130824, 4611798608418072166, 4598715651500560876, 4601597955262077993, 4634330680303760179, 4632444797959798784, 1, 850, 1, 851, 1, 852, 0, 853) ascii=b''
+moduleName             idx=836 off=0x7288 size=0x10 u64=(4, 836) ascii=b''
+sensorName             idx=838 off=0x72a0 size=0x10 u64=(8534144721107905637, 909457464) ascii=b'elish_ov8856'
+sensorSlaveAddress     idx=839 off=0x72b0 size=0x0 u64=() ascii=b''
+sensorI2CFrequencyMode idx=840 off=0x72b0 size=0x0 u64=() ascii=b''
+actuatorName           idx=841 off=0x72b0 size=0x0 u64=() ascii=b''
+eepromName             idx=843 off=0x72b0 size=0x10 u64=(25, 843) ascii=b''
+laneAssign             idx=849 off=0x7308 size=0x8 u64=(16,) ascii=b''
+isComboMode            idx=850 off=0x7310 size=0x8 u64=(0,) ascii=b''
+maxRollDegree          idx=851 off=0x7318 size=0x8 u64=(4645040803167600640,) ascii=b''
+maxPitchDegree         idx=852 off=0x7320 size=0x8 u64=(4645040803167600640,) ascii=b''
+maxYawDegree           idx=853 off=0x7328 size=0x8 u64=(4645040803167600640,) ascii=b''

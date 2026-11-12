@@ -1,0 +1,15 @@
+[Unit]
+Description=Elish virtual camera (%i), full-resolution via elish-camera serve
+After=systemd-modules-load.service
+# both sensors cannot stream at once on this board
+Conflicts=elish-camera@front.service elish-camera@rear.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/elish-camera serve --camera %i
+Restart=on-failure
+RestartSec=2
+# camera pipeline is CPU/GPU heavy; give it a modest boost
+Nice=-5
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,73 @@
+#!/bin/bash
+# elish-sensors-resume-worker — restore iio/accelerometer after suspend/resume.
+#
+# After resume the SLPI sensor stack can take tens of seconds to come back (SLPI PD
+# re-initialises the SNS registry after the frpc_dsp crash / SSR).  If we restart
+# iio-sensor-proxy immediately, iio exists but has no accelerometer yet, and mutter
+# (GNOME 46) claims the accelerometer only when its D-Bus proxy is created; when the
+# sensor appears later mutter never re-claims it, so auto-rotate stays disabled.
+# Therefore: wait until the accelerometer appears, *then* restart iio once more so
+# mutter re-creates the proxy with the sensor present.
+#
+# 2026-11-12 加速版：
+#  - 轮询 2s -> 0.5s；
+#  - 删除无效的 "systemctl start slpi-sensors" 兜底（该 unit 是 active(exited)，
+#    start 是 no-op；误触发还会因 /dev/fastrpc-sdsp 已存在写 /run/sensor-boot-bad）；
+#    改为对 iio 做一次硬重启（TimeoutStopSec=3 已限制停等时间）。
+set -u
+
+log() { logger -t elish-sensors-resume "$*"; }
+now_ms() { date +%s%3N; }
+T0=$(now_ms)
+
+has_accel() {
+    local v
+    v=$(timeout 2 gdbus call --system --dest net.hadess.SensorProxy \
+        --object-path /net/hadess/SensorProxy \
+        --method org.freedesktop.DBus.Properties.Get \
+        net.hadess.SensorProxy HasAccelerometer 2>/dev/null)
+    case "$v" in *true*) return 0 ;; *) return 1 ;; esac
+}
+
+wait_accel() { # $1 = max seconds
+    local n=$(( $1 * 2 ))
+    for _ in $(seq 1 "$n"); do
+        has_accel && return 0
+        sleep 0.5
+    done
+    return 1
+}
+
+restart_iio() {
+    systemctl restart iio-sensor-proxy.service >/dev/null 2>&1 || true
+}
+
+log "post-resume: waiting for the accelerometer to come back"
+if ! systemctl is-active --quiet iio-sensor-proxy; then
+    log "iio-sensor-proxy not running, starting it"
+    systemctl --no-block start iio-sensor-proxy.service 2>/dev/null || true
+fi
+
+if wait_accel 60; then
+    log "accelerometer is back after $(( $(now_ms) - T0 ))ms"
+else
+    log "accelerometer still missing after 60s; restarting iio once"
+    restart_iio
+    if wait_accel 45; then
+        log "accelerometer is back after iio restart ($(( $(now_ms) - T0 ))ms)"
+    else
+        log "accelerometer still missing after 105s; giving up (SLPI PD recovery failed this boot)"
+        exit 1
+    fi
+fi
+
+# Now that the sensor is present, restart iio once so mutter re-creates its
+# D-Bus proxy and claims the accelerometer (needed for auto-rotate).
+log "restarting iio-sensor-proxy so mutter re-claims the accelerometer"
+restart_iio
+if wait_accel 30; then
+    log "done: accelerometer ready and re-claimed (total $(( $(now_ms) - T0 ))ms)"
+else
+    log "warning: accelerometer missing after iio restart"
+    exit 1
+fi

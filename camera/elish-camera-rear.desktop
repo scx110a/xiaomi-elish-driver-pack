@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Elish Camera (Rear)
+Comment=Rear camera preview (full resolution, GPU pipeline)
+Exec=/usr/local/bin/elish-camera-gui rear
+Icon=camera-web
+Terminal=false
+Type=Application
+Categories=AudioVideo;Video;Camera;

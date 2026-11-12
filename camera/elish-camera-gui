@@ -1,0 +1,3 @@
+#!/bin/bash
+# elish-camera-gui [front|rear]
+exec elish-camera-ctl gui "$@"

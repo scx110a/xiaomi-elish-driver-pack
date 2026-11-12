@@ -1,0 +1,22 @@
+file /tmp/arv/bin/com.qti.sensormodule.elish_qtech_hi556.bin size 124904 0x1e7e8 Parameter Parser V2.0.0 (1907311
+  section id=0 off=0xe8 size=0x14910
+  section id=1 off=0x149f8 size=0x9dd0
+  section id=2 off=0x1e7c8 size=0x20
+nodes: 1170 data base: 0x149f8
+sensorName             idx=5 off=0xc40 size=0x10 u64=(7595425673777867877, 3552565) ascii=b'elish_hi556'
+resolutionInfo         idx=15 off=0xd78 size=0x20 u64=(1, 15, 1, 16) ascii=b''
+resolutionData         idx=17 off=0xda0 size=0x120 u64=(1, 1, 17, 2816, 2078, 219, 124, 175872000, 1, 1, 4629152982728589797, 2, 1, 18, 20, 0, 1, 19, 39, 20, 0, 0, 0, 0, 0, 138, 0, 139, 0, 140, 0, 141, 1, 142, 0, 143) ascii=b''
+streamConfiguration    idx=18 off=0xec0 size=0x40 u64=(0, 43, 0, 0, 2592, 1944, 10, 1) ascii=b''
+moduleConfiguration    idx=854 off=0x7438 size=0x140 u64=(1, 1, 854, 12, 856, 0, 857, 0, 858, 0, 859, 0, 860, 1, 861, 0, 863, 0, 864, 1, 865, 2, 1, 867, 1, 868, 4611415802449745674, 4612586738352862003, 4599490270636468601, 4616411420336406397, 4634696597773484032, 4633078116657397760, 1, 869, 1, 870, 1, 871, 0, 872) ascii=b''
+moduleName             idx=855 off=0x7578 size=0x10 u64=(6, 855) ascii=b''
+sensorName             idx=857 off=0x7590 size=0x10 u64=(7595425673777867877, 3552565) ascii=b'elish_hi556'
+sensorSlaveAddress     idx=858 off=0x75a0 size=0x0 u64=() ascii=b''
+sensorI2CFrequencyMode idx=859 off=0x75a0 size=0x0 u64=() ascii=b''
+actuatorName           idx=860 off=0x75a0 size=0x0 u64=() ascii=b''
+eepromName             idx=862 off=0x75a0 size=0x10 u64=(18, 862) ascii=b''
+laneAssign             idx=868 off=0x75f0 size=0x8 u64=(16,) ascii=b''
+isComboMode            idx=869 off=0x75f8 size=0x8 u64=(0,) ascii=b''
+maxRollDegree          idx=870 off=0x7600 size=0x8 u64=(4645040803167600640,) ascii=b''
+maxPitchDegree         idx=871 off=0x7608 size=0x8 u64=(4645040803167600640,) ascii=b''
+maxYawDegree           idx=872 off=0x7610 size=0x8 u64=(4645040803167600640,) ascii=b''
+EEPROMName             idx=874 off=0x7618 size=0x18 u64=(8390592482985471077, 3834086554774037349, 54) ascii=b'elish_qtech_hi556'

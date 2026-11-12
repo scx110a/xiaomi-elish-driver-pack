@@ -1,0 +1,12 @@
+[Unit]
+Description=Goodix TA watchdog (auto-reload loader on hard failure)
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/fp-ta-watchdog
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

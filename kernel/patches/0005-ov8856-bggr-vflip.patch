@@ -1,0 +1,29 @@
+--- a/drivers/media/i2c/ov8856.c
++++ b/drivers/media/i2c/ov8856.c
+@@ -1489,7 +1489,7 @@
+ 		},
+ 		.link_freq_index = 0,
+ 		.data_lanes = 2,
+-		.default_mbus_index = OV8856_MEDIA_BUS_FMT_SGRBG10_1X10,
++		.default_mbus_index = OV8856_MEDIA_BUS_FMT_SBGGR10_1X10,
+ 	},
+ 	{
+ 		.width = 1640,
+@@ -1504,7 +1504,7 @@
+ 		},
+ 		.link_freq_index = 1,
+ 		.data_lanes = 2,
+-		.default_mbus_index = OV8856_MEDIA_BUS_FMT_SGRBG10_1X10,
++		.default_mbus_index = OV8856_MEDIA_BUS_FMT_SBGGR10_1X10,
+ 	}}
+ };
+ 
+@@ -1950,7 +1950,7 @@
+ 	v4l2_ctrl_new_std(ctrl_hdlr, &ov8856_ctrl_ops,
+ 			  V4L2_CID_HFLIP, 0, 1, 1, 0);
+ 	v4l2_ctrl_new_std(ctrl_hdlr, &ov8856_ctrl_ops,
+-			  V4L2_CID_VFLIP, 0, 1, 1, 0);
++			  V4L2_CID_VFLIP, 0, 1, 1, 1);
+ 	if (ctrl_hdlr->error) {
+ 		ret = ctrl_hdlr->error;
+ 		goto err_ctrl_handler_free;

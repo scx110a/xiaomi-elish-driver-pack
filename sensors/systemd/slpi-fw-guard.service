@@ -1,0 +1,13 @@
+[Unit]
+Description=Guard SLPI kernel firmware path (prevent boot-time auto_boot)
+After=local-fs.target
+Before=multi-user.target slpi-sensors.service
+ConditionPathExists=/usr/local/sbin/slpi-fw-guard.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/slpi-fw-guard.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

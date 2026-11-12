@@ -1,0 +1,28 @@
+#!/bin/bash
+# Capture one color frame from the front OV8856 (software debayer + simple AWB).
+set -euo pipefail
+OUT=${1:-/tmp/elish-camera-color.png}
+RAW=$(mktemp /tmp/elish-color-XXXXXX.raw)
+trap 'rm -f "$RAW"' EXIT
+ANALOGUE_GAIN=${ANALOGUE_GAIN:-2047} DIGITAL_GAIN=${DIGITAL_GAIN:-4095} elish-camera-init >/dev/null
+timeout 12 v4l2-ctl -d /dev/video0 --stream-mmap --stream-count=1 --stream-to="$RAW" >/dev/null
+python3 - "$RAW" "$OUT" "${WB_R:-1.8}" "${WB_B:-1.5}" <<'PY'
+import sys, numpy as np
+from PIL import Image
+raw,out,wbr,wbb=sys.argv[1],sys.argv[2],float(sys.argv[3]),float(sys.argv[4])
+w,h=1640,1232
+d=np.fromfile(raw,dtype=np.uint8); stride=d.size//h
+rows=d[:h*stride].reshape(h,stride)
+g=rows[:,:(w//4)*5].reshape(h,w//4,5).astype(np.uint16)
+pix=np.empty((h,w//4,4),dtype=np.uint16)
+pix[...,0]=(g[...,0]<<2)|(g[...,4]&3); pix[...,1]=(g[...,1]<<2)|((g[...,4]>>2)&3)
+pix[...,2]=(g[...,2]<<2)|((g[...,4]>>4)&3); pix[...,3]=(g[...,3]<<2)|((g[...,4]>>6)&3)
+pix=(pix>>2).astype(np.uint16).reshape(h,w)
+# SGRBG10: 2x2 block = G R / B G
+b=pix[0::2,0::2].astype(np.float32)
+gg=(pix[0::2,1::2].astype(np.float32)+pix[1::2,0::2].astype(np.float32))/2
+r=pix[1::2,1::2].astype(np.float32)
+rgb=np.stack([np.clip(r*wbr,0,255),np.clip(gg,0,255),np.clip(b*wbb,0,255)],axis=-1).astype(np.uint8)
+Image.fromarray(rgb,'RGB').resize((820,616),Image.LANCZOS).save(out)
+print(out)
+PY

@@ -1,0 +1,55 @@
+--- a/drivers/misc/fastrpc.c
++++ b/drivers/misc/fastrpc.c
+@@ -1022,7 +1022,7 @@
+ 
+ 	ctx->msg_sz = pkt_size;
+ 
+-	if (ctx->fl->sctx->sid)
++	if (ctx->fl->sctx->sid && ctx->fl->pd != SENSORS_PD)
+ 		err = fastrpc_buf_alloc(ctx->fl, dev, pkt_size, &ctx->buf);
+ 	else
+ 		err = fastrpc_remote_heap_alloc(ctx->fl, dev, pkt_size, &ctx->buf);
+@@ -2359,17 +2359,37 @@
+ 	if (domain_id == SDSP_DOMAIN_ID) {
+ 		struct resource res;
+ 		u64 src_perms;
++		static const u32 cand[][3] = {
++			{3, 5, 0}, {3, 0, 5}, {5, 3, 0},
++			{3, 0, 0}, {5, 0, 0}, {0x16, 0x25, 0},
++		};
++		unsigned int ci;
+ 
+ 		err = of_reserved_mem_region_to_resource(rdev->of_node, 0, &res);
+ 		if (!err) {
+ 			src_perms = BIT(QCOM_SCM_VMID_HLOS);
+-
+-			err = qcom_scm_assign_mem(res.start, resource_size(&res), &src_perms,
+-				    data->vmperms, data->vmcount);
+-			if (err)
+-				goto err_free_data;
++			for (ci = 0; ci < ARRAY_SIZE(cand); ci++) {
++				struct qcom_scm_vmperm perms[3];
++				unsigned int n = 0, k;
++
++				for (k = 0; k < 3; k++) {
++					if (!cand[ci][k])
++						continue;
++					perms[n].vmid = cand[ci][k];
++					perms[n].perm = QCOM_SCM_PERM_RWX;
++					n++;
++				}
++				err = qcom_scm_assign_mem(res.start, resource_size(&res),
++						  &src_perms, perms, n);
++				dev_info(rdev, "SDSP assign try [%u]: %d\n", ci, err);
++				if (!err)
++					break;
++			}
++			if (err) {
++				dev_warn(rdev, "all SDSP assign attempts failed (%d), continuing\n", err);
++				err = 0;
++			}
+ 		}
+-
+ 	}
+ 
+ 	secure_dsp = !(of_property_read_bool(rdev->of_node, "qcom,non-secure-domain"));

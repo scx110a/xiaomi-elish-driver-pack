@@ -1,0 +1,29 @@
+--- a/drivers/media/i2c/hi556.c
++++ b/drivers/media/i2c/hi556.c
+@@ -1362,7 +1362,7 @@
+ 		return dev_err_probe(hi556->dev, ret,
+ 				     "failed to get regulators\n");
+ 
+-	full_power = acpi_dev_state_d0(hi556->dev);
++	full_power = acpi_dev_state_d0(hi556->dev) || dev_fwnode(hi556->dev);
+ 	if (full_power) {
+ 		/* Ensure non ACPI managed resources are enabled */
+ 		ret = hi556_resume(hi556->dev);
+@@ -1437,10 +1437,17 @@
+ MODULE_DEVICE_TABLE(acpi, hi556_acpi_ids);
+ #endif
+ 
++static const struct of_device_id hi556_of_match[] = {
++	{ .compatible = "hynix,hi556" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, hi556_of_match);
++
+ static struct i2c_driver hi556_i2c_driver = {
+ 	.driver = {
+ 		.name = "hi556",
+ 		.acpi_match_table = ACPI_PTR(hi556_acpi_ids),
++		.of_match_table = hi556_of_match,
+ 		.pm = pm_sleep_ptr(&hi556_pm_ops),
+ 	},
+ 	.probe = hi556_probe,

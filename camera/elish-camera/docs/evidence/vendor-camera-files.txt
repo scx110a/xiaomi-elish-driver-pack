@@ -1,0 +1,12 @@
+# Android vendor 镜像 camera 关键文件 (只读, 来自 /mnt/android-vendor)
+# 采集: 2026-11-12; sha256:
+b3863436268af1897b9203f41b74faf09135b92756887c8c1b9290771943a0fb  com.qti.sensor.elish_ov8856.so
+89610e7b200193b4248fde6878649de038b873f6a22c1fc32bfb2e6f46d17117  com.qti.sensor.elish_ov13b10.so
+b6e43226227e2176bb96934058561e4b0151c3da387d37103b8c5416b345015e  com.qti.sensor.elish_hi556.so
+5b58cf7cb4a6d4dca464a28ffdf53a303c61418acfb430b808a7bbaf82fcb34f  com.qti.sensormodule.elish_aac_ov8856.bin
+e5db8ccb754294bf5810ccfa667f973c28c08b7ca9ca875a0fa4b5f1f2f8b3d2  com.qti.sensormodule.elish_ofilm_ov13b10.bin
+c4aa79e505af1300a5922ab478373f8ef2785eea636c43505666b314b8153210  com.qti.sensormodule.elish_qtech_hi556.bin
+3423cac7f4313c9545f98666e82ca46c08ece9c3ba1df5c0ace6f212659181de  com.qti.eeprom.elish_aac_ov8856_p24c64f.so
+6801dc7b78c843ee014359492392839a1a3f5ef6abbb167e198ad617881cbb62  com.qti.eeprom.elish_ofilm_ov13b10_bl24sa64.so
+28524d21f62998975a1d3434e41eb1066c74037b2449d5ce8331c46f7e521eb0  com.qti.eeprom.elish_qtech_hi556.so
+ceda41ac29a3fb32c1907920be6c0fed307265f18676f8a83df7905d1a074c5a  com.qti.actuator.elish_cn3927_ov13b10.so

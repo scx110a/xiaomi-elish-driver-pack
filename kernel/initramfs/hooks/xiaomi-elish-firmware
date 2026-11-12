@@ -1,0 +1,17 @@
+#!/bin/bash
+# 修复版 initramfs hook：不要把 SLPI 固件（尤其符号链接/禁用文件）打进 initramfs。
+# 原版 Armbian hook 会对 /lib/firmware/.../elish/* 全部 add_firmware，包括
+#   slpi.mbn -> /run/sensor-fw/slpi.mbn（跟随符号链接 → 真实 7.6MB 固件进入 initramfs）
+# 与 slpi.mbn.disabled，导致内核可在 boot 早期 auto_boot SLPI。
+[[ "$1" == "prereqs" ]] && exit 0
+. /usr/share/initramfs-tools/hook-functions
+for f in /lib/firmware/qcom/sm8250/xiaomi/elish/*; do
+    [ -f "$f" ] || continue
+    [ -L "$f" ] && continue
+    case "$(basename "$f")" in
+        *.disabled|slpi.*|slpi-disabled) continue ;;
+    esac
+    add_firmware "${f#/lib/firmware/}"
+done
+add_firmware "qcom/a650_sqe.fw"
+add_firmware "qcom/a650_gmu.bin"

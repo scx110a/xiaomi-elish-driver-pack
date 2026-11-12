@@ -1,0 +1,16 @@
+[Unit]
+Description=Start SLPI sensors stack (listener first, then SLPI)
+# 2026-11-12 加速改造：不再 After=multi-user.target（原来要等 boot+37s 桌面启动链）。
+# 改为 basic.target 之后即启动，与桌面启动并行；监听器会先等内核 slpi remoteproc 就绪。
+After=slpi-fw-guard.service
+Wants=slpi-fw-guard.service
+[Service]
+# 用 Type=exec（而不是 oneshot）：systemd 在进程 exec 成功后就认为服务已启动，
+# multi-user.target 不会等待本脚本跑完（否则会等 20-150s 才进桌面）。
+Type=exec
+ExecStart=/usr/local/sbin/slpi-sensors-start.sh
+ExecStop=/usr/local/sbin/slpi-sensors-stop.sh
+RemainAfterExit=yes
+TimeoutStartSec=300
+[Install]
+WantedBy=multi-user.target

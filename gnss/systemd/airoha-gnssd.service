@@ -1,0 +1,21 @@
+[Unit]
+Description=Airoha AG3335 GNSS userspace driver (NMEA -> /dev/ttyGNSS0)
+Documentation=file:/usr/local/share/doc/airoha-gnssd/README.md
+After=systemd-modules-load.service
+Before=gpsd.service
+Wants=gpsd.service
+
+[Service]
+Type=notify
+NotifyAccess=all
+ExecStart=/usr/local/sbin/airoha-gnssd --log-file /var/log/airoha-gnssd.log
+Restart=on-failure
+RestartSec=3
+# the daemon handles SIGTERM by powering the GNSS chip down
+KillSignal=SIGTERM
+TimeoutStopSec=10
+# /dev/airoha_gps and /dev/ttyHS1 need root (or a dedicated udev rule)
+User=root
+
+[Install]
+WantedBy=multi-user.target
