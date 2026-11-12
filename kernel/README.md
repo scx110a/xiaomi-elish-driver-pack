@@ -30,6 +30,7 @@
 | `patches/0007-cn3927v.patch` | OV13B10 后摄 CN3927V VCM 驱动（focus sysfs + DTS node；见 `camera/README.md`） |
 | `patches/0008-hi556-of.patch` | Hi556 景深 OF match + 非 ACPI power/identify（DTS 已接，I2C 仍待查） |
 | `update-boot-image.sh` | 推荐：预检 DTB/initramfs + 备份目标 Linux 启动槽 + 重建 + 回读校验（自动检测） |
+| `compat-check.sh` | 升级前只读兼容性检查：补丁 dry-run + 整文件副本 diff + 关键符号/DTS 检查 |
 | `PINCTRL-LPASS.md` | 该补丁的症状/部署/initramfs 注意事项 |
 | `CHARGER-RESUME.md` | SMB5 Type-C legacy/suspend 充电卡死修复与验证 |
 | `include/` | 指纹驱动必需的 3 个内核头文件（qcom_scm.h / mdt_loader.h / tee.h） |

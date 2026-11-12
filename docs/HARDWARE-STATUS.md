@@ -22,7 +22,7 @@
 | 已驱动 | 相机后端登录自启：`elish-camera-autostart` + `/etc/xdg/autostart/elish-camera-autoserve.desktop` | ✅ |
 | 功能缺陷 | 睡眠唤醒后 pogo 键盘可能失效/反复重枚举（host USB PHY resume 问题；重启/重插恢复） | ⚠️ 内核问题，用户态不改（历史危险复位已禁用） |
 | 已驱动 | 传感器（加速度/环境光/旋转矢量方向/指南针）、指纹、触摸/笔/霍尔、显示/背光、电池/充电、音频、WiFi/BT、键盘/鼠标、Venus 编解码、GPU/UFS/PCIe、相机闪光灯 | ✅ |
-| 本机不存在 | 5G modem、NFC、红外、振动马达、无线充电、FPC 指纹、外接显示 | — |
+| 本机不存在 | 5G 版本（本机 WiFi 版；5G 变体不在本包测试范围） | — |
 
 ---
 
@@ -122,13 +122,9 @@
 
 | 硬件 | 依据 |
 |---|---|
-| 5G 调制解调器 | 本机是 WiFi 版（用户确认） |
-| NFC（nq-nci） | Android 运行时 DT `disabled`；规格无 |
-| 红外（ir-spi） | 父 SPI 总线 `disabled`；规格无 |
-| 振动马达（aw8697） | Android DT `disabled`；规格无振动 |
-| 无线充电（P9418） | 规格仅 67W 有线 |
-| FPC 指纹 | 本机是 Goodix |
-| 外接显示/DP 写回 | 规格无 DP 输出 |
+| 5G 版本 | 本机是 WiFi 版（用户确认）；5G 变体不在本包测试范围 |
+
+> 其余所有 elish 型号均不存在的杂项硬件不再列出；DTB 中也未包含对应节点。
 
 ---
 

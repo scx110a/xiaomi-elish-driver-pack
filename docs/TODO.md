@@ -120,7 +120,7 @@
 - **PMIC RTC 无后备电池**：断电后可能回到 1970，依赖 NTP 校准，硬件不可修；
 - **额外霍尔**：vendor DTBO 的 `hall_intr3/4`、`gamekey hall_left/right`、键盘 MCU gpio155
   在 mainline 无驱动/未启用，不计划支持（自动旋转/软键盘只需 `SW_TABLET_MODE`）；
-- **本机不存在**：5G modem、NFC、红外、振动马达、无线充电、FPC 指纹、DP 外接输出；
+- **本机不存在**：5G 版本（本机 WiFi 版；其余杂项硬件所有型号均无）；
 - **dmesg 噪音**：DPU frame event overflow、GPU cooling 注册告警，不影响使用；
 - **传感器 PD 偶发静默卡死（约 1/14 开机）**：SLPI/PD 固件侧问题，用户态只能重启恢复，
   不再作为 TODO（2026-11-12 深夜加速后实测开机 ~55s 可用）。
@@ -535,6 +535,16 @@
   全部改为"Linux 启动槽（自动检测）"，历史记录保留"本机 boot_b"说明。
 - 验证：全包无 `by-partlabel/boot_b` 硬编码；槽位检测在本机得到 boot_b 且分区存在；脚本 `bash -n` + `--help` 通过。
 - 包统计不变（283 个受控文件）；SHA256SUMS 重新生成并校验；已 commit + push。
+
+**2026-11-13 凌晨：内核升级兼容性工具 + 不存在硬件清理**
+- 新增 `kernel/compat-check.sh`：升级前只读检查补丁 dry-run + 整文件副本 diff + 关键符号/DTS；
+  实测：Armbian `linux-6.18.y` HEAD 7/8 补丁 clean（0004 目标在补丁集里，分支镜像无）；
+  mainline `v6.19` 下 0001 fastrpc、0005 ov8856 有 hunk 冲突，其余 clean。
+- 新增 `docs/KERNEL-UPGRADE-RISK.md`：churn 数据、dry-run 结果、升级清单、移植 vs 从零评估。
+- 按用户要求**不加 GitHub Actions**（本地/手动跑 compat-check 即可）。
+- 文档清理：删除"本机不存在"里所有型号均无的杂项硬件条目，只保留 5G 版本一项
+  （这些硬件所有 elish 型号都没有；DTB 中也无对应节点）。
+- 包统计：283 个包文件；SHA256SUMS 重新生成并校验；commit + push。
 
 **磁盘清理（同日）**：删除 16 个重复 boot_b 全分区备份、相机调试一次性备份、重复内核镜像、
 GNSS candidate boot img、apt 缓存等，释放 ~4.1GB（46G→42G used）；保留

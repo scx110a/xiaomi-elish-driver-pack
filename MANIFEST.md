@@ -17,6 +17,7 @@ install/       一键安装器（turnkey/extract-all/build-userspace + lib/）�
 docs/          合并升级影响评估（UPGRADE-IMPACT-ALL.md）+ 硬件状态权威基线（HARDWARE-STATUS.md）
                + 整机 TODO（TODO.md）+ 设备数据/固件提取指南（DEVICE-DATA-EXTRACTION.md）
                + 安全加固说明（HARDENING.md）
+               + 内核升级风险评估（KERNEL-UPGRADE-RISK.md）
 camera/        相机子包：elish-camera/（前后摄全分辨率 3280×2464/4208×3120，GPU debayer + Venus 硬编，~30fps 拍照/录像，/dev/video2+/dev/video20 双虚拟相机，autoserve 自动路由，PipeWire/portal，后摄自动对焦）+ 旧 OV8856 helper + install.sh（一键安装）+ elish-camera/verify.sh（自检）
                + Android/Linux 充电驱动对比（CHARGING-DRIVER-COMPARISON.md）
 ```
@@ -27,6 +28,7 @@ camera/        相机子包：elish-camera/（前后摄全分辨率 3280×2464/4
 |---|---|
 | `README.md` | 统一内核构建步骤、配置/ABI 校验、联合 DTB/boot 镜像 |
 | `build-and-install.sh` | 一键补丁/配置/编译/模块/DTB/initramfs/Linux 启动槽（按 armbianEnv 自动检测；自动备份；不碰 Android 槽） |
+| `compat-check.sh` | 升级前只读兼容性检查：补丁 dry-run + 整文件副本 diff + 关键符号/DTS 检查（支持 --src / --fetch-ref） |
 | `qseecom/` | 指纹 QSEECOM TEE 驱动 |
 | `mdt_loader.c` / `qcom_scm.c` | 指纹内核文件 |
 | `goodix_fp_spi/` | 指纹传感器驱动源码（无编译产物） |
@@ -94,4 +96,4 @@ Airoha AG3335 GNSS 子包（2026-11-12 打通）：
 
 ## 统计
 
-**281 个文件；体积约 3.2MB**（不含 SHA256SUMS）。**无 ELF/固件/日志/TA/指纹模板/单机校准 dump**；唯一二进制是模型级联合 DTB；`SHA256SUMS` 已按最终树生成。
+**283 个文件；体积约 3.2MB**（不含 SHA256SUMS）。**无 ELF/固件/日志/TA/指纹模板/单机校准 dump**；唯一二进制是模型级联合 DTB；`SHA256SUMS` 已按最终树生成。

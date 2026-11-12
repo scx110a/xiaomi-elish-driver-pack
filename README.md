@@ -59,7 +59,7 @@ GPU debayer + Venus 硬编）** 四套功能合并为一个**可重复安装的�
 | 系统 | 屏幕方向/平板模式/自动旋转配置 | ⚠️ | `tablet_mode=on/off/auto`、`rebuild_mode`；依赖保护套霍尔 |
 | 系统 | 睡眠唤醒后 pogo 键盘 | ⚠️ | 已知内核 USB PHY resume 问题；重启/重插恢复，用户态不改（防死锁） |
 | 系统 | 充电 | ⚠️ | 基础 ~1.95A；快充泵/33W+ 无原装充电器未验证 |
-| — | 5G modem / NFC / 红外 / 振动马达 / 无线充电 / FPC 指纹 / 外接显示 | — | 本机不存在（WiFi 版） |
+| — | 5G 版本 | — | 本机为 WiFi 版（5G 变体不在本包测试范围；其余杂项硬件所有型号均无） |
 
 完整硬件基线见 [`docs/HARDWARE-STATUS.md`](docs/HARDWARE-STATUS.md)。
 
@@ -299,6 +299,7 @@ sudo ./install/extract-all.sh --android <vendor.img> --pmos <slpi.apk> [--finger
 sudo ./install/check-all.sh         # 合并自检（DTB/传感器/指纹/GNSS/相机/initramfs）
 sensor-status                       # 传感器总览（服务/固件路径/PDM/iio/数值）
 bash camera/elish-camera/verify.sh  # 相机栈
+./kernel/compat-check.sh --src <新内核源码树>   # 升级前：补丁/整文件兼容性 dry-run（只读）
 sudo ./fingerprint/install/verify-fingerprint.sh "$USER"
 sudo ./gnss/install/verify.sh
 sudo ./kernel/dtb/verify-combined-dtb.sh
@@ -365,4 +366,5 @@ sudo ./kernel/dtb/verify-combined-dtb.sh
 - 硬件基线：`docs/HARDWARE-STATUS.md`（权威）
 - 整机待办/已知问题：`docs/TODO.md`
 - 升级影响：`docs/UPGRADE-IMPACT-ALL.md`、`sensors/docs/UPGRADE-IMPACT.md`
+- 内核升级风险评估与操作清单：`docs/KERNEL-UPGRADE-RISK.md`
 - 回滚/救援：`docs/` 与 `kernel/README.md`、备份脚本（安装内核/系统前会自动备份 Linux 启动槽与关键配置）

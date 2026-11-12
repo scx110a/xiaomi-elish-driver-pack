@@ -66,7 +66,7 @@ It bundles four subsystems on one shared kernel / DTB / boot image:
 | System | Screen orientation / tablet mode / auto-rotate configuration | ⚠️ | `tablet_mode=on/off/auto`, `rebuild_mode`; depends on the cover hall switch |
 | System | Pogo keyboard after suspend/resume | ⚠️ | Known kernel USB PHY resume issue; reboot/re-plug recovers; userspace deliberately does not touch it |
 | System | Charging | ⚠️ | Baseline ~1.95 A; quick-charge pump / 33 W+ not validated (no original charger) |
-| — | 5G modem / NFC / IR / vibration / wireless charging / FPC fingerprint / external display | — | Not present on this Wi-Fi model |
+| — | 5G variant | — | This unit is Wi-Fi only (5G variant is outside this package's test scope; other misc hardware is absent on all variants) |
 
 The authoritative hardware baseline is [`docs/HARDWARE-STATUS.md`](docs/HARDWARE-STATUS.md).
 
@@ -313,6 +313,7 @@ It validates registry=155 / config=40 / proto=79 / slpi.mbn md5. Full list and m
 sudo ./install/check-all.sh         # combined self-check (DTB/sensors/fingerprint/GNSS/camera/initramfs)
 sensor-status                       # sensor overview (services/firmware path/PDM/iio/values)
 bash camera/elish-camera/verify.sh  # camera stack
+./kernel/compat-check.sh --src <new kernel source tree>   # read-only patch/copy compatibility dry-run
 sudo ./fingerprint/install/verify-fingerprint.sh "$USER"
 sudo ./gnss/install/verify.sh
 sudo ./kernel/dtb/verify-combined-dtb.sh
@@ -386,4 +387,5 @@ under the **MIT License** — see [`LICENSE`](LICENSE).
 - Hardware baseline: `docs/HARDWARE-STATUS.md` (authoritative)
 - TODO / known issues: `docs/TODO.md`
 - Upgrade impact: `docs/UPGRADE-IMPACT-ALL.md`, `sensors/docs/UPGRADE-IMPACT.md`
+- Kernel upgrade risk assessment and checklist: `docs/KERNEL-UPGRADE-RISK.md`
 - Rollback/recovery: `docs/`, `kernel/README.md`; kernel/system installers back up the Linux boot slot and key configs automatically.
