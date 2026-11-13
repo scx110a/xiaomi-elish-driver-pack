@@ -80,7 +80,12 @@ stop_backend() {
         kill "$(cat "$PIDF")" 2>/dev/null || true
         rm -f "$PIDF"
     fi
-    systemctl stop elish-camera@front elish-camera@rear 2>/dev/null || true
+    # 系统相机模板 unit（elish-camera@front/rear）默认 disabled/inactive，后端由 $PIDF 管理；
+    # 用户会话里 stop 系统 unit 会触发 polkit 密码框，默认不调用。需要时显式设
+    # ELISH_CAMERA_STOP_SYSTEM_UNITS=1。
+    if [ "${ELISH_CAMERA_STOP_SYSTEM_UNITS:-0}" = 1 ]; then
+        systemctl stop elish-camera@front elish-camera@rear 2>/dev/null || true
+    fi
     pkill -x elish-camera 2>/dev/null || true
     sleep 0.4
 }
