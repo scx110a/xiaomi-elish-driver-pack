@@ -17,6 +17,9 @@ install -m 0644 "$P/system/udev/60-goodix-qsee.rules" /etc/udev/rules.d/
 echo "== 2) systemd 单元"
 install -m 0644 "$P/system/systemd/qsee-supplicant.service" "$P/system/systemd/qsee-app-loader@.service" /usr/lib/systemd/system/
 install -m 0644 "$P/system/systemd/fp-ta-watchdog.service" /etc/systemd/system/
+# Limit loader restart rate on TA/CMA hard failures (see fingerprint/NOTES.md §2/§3)
+install -d /etc/systemd/system/qsee-app-loader@.service.d
+install -m 0644 "$P/system/systemd/qsee-app-loader@.service.d/50-restart-limit.conf" /etc/systemd/system/qsee-app-loader@.service.d/
 install -d /etc/systemd/system/fprintd.service.d
 install -m 0644 "$P/system/systemd/fprintd-60-goodix-qsee.conf" /etc/systemd/system/fprintd.service.d/60-goodix-qsee.conf
 

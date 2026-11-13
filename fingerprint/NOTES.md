@@ -37,6 +37,10 @@
 - 触发：短时间内并发/连续多个 verify（脚本连测）会把 TA 留在 armed 状态。
 - 恢复（不重启）：`sudo systemctl restart qsee-app-loader@gfenu`；
   已部署 `fp-ta-watchdog` 自动做（依赖 libfprint 日志补丁）。
+- `fp-ta-watchdog` 现在区分：`-22`/QSEE refusal → 重载 loader；只有真正的
+  `Cannot allocate memory`/CMA 碎片才停止 loader 并提示重启。
+- `qsee-app-loader@.service` 增加了 restart limit drop-in（3 次/5 分钟、
+  `RestartSec=10s`），避免 TA 失败时每 2 秒无限重载。
 - 日常：**不要并发跑指纹操作**，上一个结束后再发下一个。
 
 ## 4. TA / mdt_loader

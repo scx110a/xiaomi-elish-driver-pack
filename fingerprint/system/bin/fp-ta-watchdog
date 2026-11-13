@@ -1,6 +1,9 @@
 #!/bin/sh
-# Watch kernel + fprintd journal for Goodix/QSEECOM TA hard-failure signatures
-# and restart the TA loader automatically (debounced by COOLDOWN seconds).
+# Watch kernel + fprintd journal for Goodix/QSEECOM TA hard-failure signatures.
+# - "scm call failed -22" / QSEE invoke EINVAL / TA refusal: restart the loader
+#   (per fingerprint/NOTES.md this recovers without a reboot).
+# - "Cannot allocate memory" / CMA exhaustion: only a reboot reliably clears
+#   the fragmented pool; stop the loader and do not hammer it.
 COOLDOWN=${COOLDOWN:-45}
 UNIT="qsee-app-loader@gfenu.service"
 LOG=/var/log/fp-ta-watchdog.log
@@ -9,6 +12,11 @@ logger -t fp-ta-watchdog "started (unit=$UNIT cooldown=${COOLDOWN}s)"
 journalctl -f -o cat -n 0 _TRANSPORT=kernel + SYSLOG_IDENTIFIER=fprintd 2>/dev/null |
 while IFS= read -r line; do
     case "$line" in
+        *"Cannot allocate memory"*|*"cma: __cma_alloc"*|*"CMA exhausted"*)
+            logger -t fp-ta-watchdog "TA/CMA memory exhausted; stopping $UNIT (reboot required)"
+            systemctl stop "$UNIT" 2>&1 | logger -t fp-ta-watchdog
+            continue
+            ;;
         *"opening Goodix sensor"*) continue ;;
         *"Goodix QSEE open failed"*|\
         *"Goodix QSEE bring-up command"*|\
@@ -21,7 +29,7 @@ while IFS= read -r line; do
             if [ $((now - last)) -ge "$COOLDOWN" ]; then
                 last=$now
                 printf '%s TA error: %s\n' "$(date -Is)" "$line" >> "$LOG"
-                logger -t fp-ta-watchdog "TA hard failure detected, restarting $UNIT"
+                logger -t fp-ta-watchdog "TA refusal detected, restarting $UNIT"
                 systemctl restart "$UNIT" 2>&1 | logger -t fp-ta-watchdog
                 sleep 5
             fi
