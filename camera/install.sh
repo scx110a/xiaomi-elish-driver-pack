@@ -94,4 +94,6 @@ cat <<EOF
   或手动：elish-camera-ctl start
 - 验证：elish-camera-ctl panel / elish-camera-scan；ls -l /dev/video2 /dev/video20
 - 休眠唤醒恢复：合盖再唤醒后自动旋转应 ~10s 恢复（journalctl -t elish-sensors-resume -b）
+  连续睡眠加固：pre 会取消未完成的恢复 worker + flock 单实例 + sleep delay inhibitor；
+  第二次合盖会等本轮恢复结束（本机系统 InhibitDelayMaxSec=30s，足够 ~10s 恢复）再 suspend。
 EOF

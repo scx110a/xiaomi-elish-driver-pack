@@ -14,11 +14,32 @@
 #  - 删除无效的 "systemctl start slpi-sensors" 兜底（该 unit 是 active(exited)，
 #    start 是 no-op；误触发还会因 /dev/fastrpc-sdsp 已存在写 /run/sensor-boot-bad）；
 #    改为对 iio 做一次硬重启（TimeoutStopSec=3 已限制停等时间）。
+#
+# 2026-11-13 连续睡眠加固：
+#  - 单实例 flock：pre-suspend 钩子会先停掉本服务；若仍有残留 worker，重复启动
+#    直接退出，避免两个 worker 同时重启 iio / 抢 gdbus；
+#  - 计时改用 /proc/uptime（CLOCK_BOOTTIME 的秒部分），避免 suspend 边界/NTP
+#    校时让 `date` 实时钟跳变把 8s 报成 42s；
+#  - 日志增加 "awake time" 与最终结论，便于连续睡眠实测对比。
 set -u
 
 log() { logger -t elish-sensors-resume "$*"; }
-now_ms() { date +%s%3N; }
+now_ms() {
+    local s
+    read -r s _ < /proc/uptime
+    awk -v s="$s" 'BEGIN { printf "%d", s * 1000 }'
+}
+
+# Only one worker at a time.  The sleep hook stops the previous one before a
+# new suspend, but be defensive: a leftover worker must not race this one.
+exec 9>/run/elish-sensors-resume.lock || exit 1
+if ! flock -n 9; then
+    log "another elish-sensors-resume worker is already running; exiting"
+    exit 0
+fi
+
 T0=$(now_ms)
+log "worker start (uptime_ms=$T0)"
 
 has_accel() {
     local v
@@ -49,12 +70,12 @@ if ! systemctl is-active --quiet iio-sensor-proxy; then
 fi
 
 if wait_accel 60; then
-    log "accelerometer is back after $(( $(now_ms) - T0 ))ms"
+    log "accelerometer is back after $(( $(now_ms) - T0 ))ms (awake time)"
 else
     log "accelerometer still missing after 60s; restarting iio once"
     restart_iio
     if wait_accel 45; then
-        log "accelerometer is back after iio restart ($(( $(now_ms) - T0 ))ms)"
+        log "accelerometer is back after iio restart ($(( $(now_ms) - T0 ))ms awake time)"
     else
         log "accelerometer still missing after 105s; giving up (SLPI PD recovery failed this boot)"
         exit 1
@@ -66,7 +87,7 @@ fi
 log "restarting iio-sensor-proxy so mutter re-claims the accelerometer"
 restart_iio
 if wait_accel 30; then
-    log "done: accelerometer ready and re-claimed (total $(( $(now_ms) - T0 ))ms)"
+    log "done: accelerometer ready and re-claimed (total $(( $(now_ms) - T0 ))ms awake time)"
 else
     log "warning: accelerometer missing after iio restart"
     exit 1

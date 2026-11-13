@@ -1,7 +1,21 @@
 #!/bin/sh
-# systemd sleep hook: after resume, start a transient recovery service (own
-# cgroup, so it is not killed when systemd-sleep finishes).
+# systemd sleep hook for the post-resume sensor/auto-rotate recovery.
+#
+# pre:
+#   Cancel an in-flight recovery worker.  Without this, closing the lid (or
+#   pressing power) again while the worker is still waiting for the
+#   accelerometer makes the *previous* worker span the next suspend: the post
+#   hook's "systemctl start" is a no-op on the still-active oneshot, the old
+#   worker keeps waiting across the wake, and the next wake can take tens of
+#   seconds / leave the accelerometer missing until yet another sleep.
+# post:
+#   Start one fresh worker in its own cgroup (not killed when systemd-sleep
+#   exits).
 case "${1:-}" in
+    pre)
+        systemctl stop elish-sensors-resume.service 2>/dev/null || true
+        pkill -f '/usr/local/sbin/elish-sensors-resume-worker' 2>/dev/null || true
+        ;;
     post)
         systemctl --no-block start elish-sensors-resume.service 2>/dev/null || \
             setsid /usr/local/sbin/elish-sensors-resume-worker >/dev/null 2>&1 &
