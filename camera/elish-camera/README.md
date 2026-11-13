@@ -89,9 +89,10 @@ elish-camera-ctl gui rear                   # 在 /dev/video20 上打开 Guvcvie
 elish-camera-ctl status / stop
 ```
 
-桌面菜单：**Elish Camera**（单一入口；打开后在 Guvcview 的 Device 下拉里
-切换 `/dev/video2` 前摄或 `/dev/video20` 后摄）、**Elish Camera Settings**
-（分辨率/帧率/对焦/方向面板）。不再提供单独的 “Elish Camera (Rear)” 入口。
+桌面入口：**Guvcview**（系统已有；打开后在 Device 下拉里选 `/dev/video2`
+前摄或 `/dev/video20` 后摄）与 **Elish Camera Settings**（分辨率/帧率/对焦/
+方向面板）。不再安装额外的 “Elish Camera”/“Elish Camera (Rear)” 启动器
+（它们只是 `elish-camera-ctl gui` 的包装）。
 
 自动对焦（仅后摄，前摄 OV8856 是固定焦点镜头）：
 

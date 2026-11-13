@@ -108,7 +108,7 @@ gst-launch-1.0 -q pipewiresrc target-object=v4l2_input._sys_devices_virtual_vide
 
 ## 7. 相机控制/对焦/分辨率（2026-11-12 晚补充）
 
-- 统一入口：`elish-camera-ctl`（panel/start/switch/gui/status/stop）；桌面菜单三项。
+- 统一入口：`elish-camera-ctl`（panel/start/switch/gui/status/stop）；桌面入口为 Guvcview + Elish Camera Settings。
 - Guvcview 限制（实测）：v4l2loopback 的 capture 格式由生产者决定（consumer `S_FMT` 被回显），
   Guvcview 的分辨率列表因此只有当前生产格式；前后摄又不能同时出流，所以切换必须在
   后端完成（脚本/面板做这件事），不能在 Guvcview 里直接切。

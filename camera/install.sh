@@ -73,7 +73,7 @@ fi
 
 step "5) 桌面集成与后端自启"
 [ -f "$C/elish-camera-autoserve.desktop" ] && run install -m 0644 "$C/elish-camera-autoserve.desktop" /etc/xdg/autostart/
-for d in elish-camera.desktop elish-camera-panel.desktop; do
+for d in elish-camera-panel.desktop; do
     [ -f "$C/$d" ] && run install -m 0644 "$C/$d" /usr/share/applications/
 done
 

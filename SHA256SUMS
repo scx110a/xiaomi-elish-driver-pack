@@ -4,7 +4,6 @@
 460db97553f61e53e3ec85d8a08c30b79fa37ab79dabc156a200d48ed652385a  ./camera/elish-camera-autostart
 271222d634d087b87c1e76e68886c2ce32b45d7bc7e5ff7dfdadd7b0dae39f7d  ./camera/elish-camera-color
 d602604c206bfebcc926b84612c2c43b85017ff09452b90624cf8bc5627731e4  ./camera/elish-camera-ctl
-c5e48ce90d79c54bbe876cf7fffc09043ed0ff88358e0a3f8bd3cfe176cae3a5  ./camera/elish-camera.desktop
 54f292bf17ff4153c529d7120299fcd2e537cb380196975d90d43a9c725ab57c  ./camera/elish-camera/docs/architecture.md
 0be4f0477d47891f85d92f5a3152f05c3f5133f2857b2bc9868a4950f82ab7b9  ./camera/elish-camera/docs/evidence/camx-hal-evidence.txt
 c89f82d3ed353ea2498ec6131affdee516dfff25c00d4ca29ce9b2d41575e688  ./camera/elish-camera/docs/evidence/chromatix-hi556.txt
@@ -18,13 +17,13 @@ f1a2ad5eb84fac6e9a5b1291e64613e587e79773505a9717809a7dd33be2b0d5  ./camera/elish
 a89e9cd7b2605c214d28288a6ac13bad071ecfccb1b4dcb403cf6565a9c38b81  ./camera/elish-camera/docs/interface.md
 e1a3ed81ca7c24e199798c3c059b3d63f2bfd3ef5e2c2b5f8fdcfa904acc3645  ./camera/elish-camera/docs/measurements/measurements-encode.md
 b8280d370145720993181ae2b509f9dc2f6e511152b292dc55368f0fec7ee520  ./camera/elish-camera/docs/measurements/measurements-gpu.md
-6e0bd952223664cfa5c6a379281d1d86b0a31fb01b06159bee07e6f4586a0ee1  ./camera/elish-camera/docs/measurements/measurements-integrated.md
+20b1a1a75fa6b279c502981e840523def2beabd0476cebe8c9176d37de1d50aa  ./camera/elish-camera/docs/measurements/measurements-integrated.md
 354ded65034abaabac69bb2610631608d0ad04f755406103aa5748aefb6bec02  ./camera/elish-camera-gui
 25758387a3af832a0b424fa49310a44bf6a454beb85772d03c624a8f93735d17  ./camera/elish-camera/include/elish_camera.h
 11b587aae44f4bd951cad4921a77e0bd80551f84e52fb248530f0ad93acce15f  ./camera/elish-camera-init
 481823d5c4066b95ea7ef1c3fb5441ef5cbf590cfb3a053d3dec2f40a789c335  ./camera/elish-camera/Makefile
 80429787cda28d53399b9146fb81293fe49c2723401e252445f74fe1c8d17884  ./camera/elish-camera-panel.desktop
-52f744190d64a300ee2c9d9793a741eb39bc42254537f41ae158c701c281ff5a  ./camera/elish-camera/README.md
+665b520e40493225ec30c7589d41a007e77364d642bbc6f4768d6efcf821108b  ./camera/elish-camera/README.md
 37ac930422049f03afcff1c727b43e9807616ca3f90b0bb8f19f47a66c69ffdb  ./camera/elish-camera-rear-autofocus
 66e98b1395363e2a4e035aa42097117fbc374a2275551f796883aeaf7e6d0d7d  ./camera/elish-camera-rear-color
 474effb1bf43d4002a132a0f728984da07ac666e2ee0cbbdbf930e397782ed70  ./camera/elish-camera-rear-init
@@ -51,7 +50,7 @@ ad0b504320ac9b5ed62371d62bcb0df02ab1a3ac0ac62960442d8b56ddc42472  ./camera/elish
 6e4afd558bbe99b37ec7c6537f36ed1a86c3813dfd1e4cbba265cc1b998aa8b2  ./camera/elish-check-usb
 f6822cc186ecd1e8490f18e6312addcd05e68408e8fb38b5f7901c56f4cefcf1  ./camera/elish-vcam.modprobe.conf
 bb87430ef8c13d597c0ffb202d001b59bb865a2637fbf2c612e977a379b06270  ./camera/elish-vcam.modules-load.conf
-888227826fd2dbd1b9e06ce66678f7382cf5464d928e5a108fc2b884804fa1a4  ./camera/install.sh
+4bb4d223d0ad47973dd0753f96b2f0b859159c795ca03a8d01faa9b3ca5f3bf0  ./camera/install.sh
 214c7e97c7700459f9e476c9e365d71bc0fcc56aaef84171bf7422c66efcdac8  ./camera/README.md
 caf884d8e0aac3ec2ee8da8f3ee2f0be198335d3161bfb30361d6232777ee4f0  ./camera/system/elish-sensors-resume
 6b5f4d80fa4402216c1df8430449ab7e5f32fa6342a9f3d8b1456f885957776f  ./camera/system/elish-sensors-resume.service
