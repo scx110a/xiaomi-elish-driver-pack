@@ -24,13 +24,31 @@
 
 不一致 → 所有外部模块拒绝加载 → 黑屏只剩背光。BTF 编译需要 ≥4GB swap。
 
-## 2. CMA 耗尽（TA 加载失败头号原因）
+## 2. CMA 连续内存分配失败（TA 加载失败头号原因）
 
-- 加载一个 TA 需要约 9MB 物理连续 CMA；反复 `--load`/并发 verify 会打碎 CMA。
-- 症状：`load 'gfenu': Cannot allocate memory`、`cma: __cma_alloc ... ret: -16`；
-  `CmaFree` 可能还有 10MB+ 但无连续块。
-- 正确用法：**加载一次、loader 常驻**（`qsee-app-loader@gfenu`），不要反复手动加载。
-- 恢复：重启最彻底；或 `systemctl restart qsee-app-loader@gfenu`。
+- 加载一个 TA 需要约 9MB **物理连续**内存（`qcom_tzmem_pool_new()` →
+  `dma_alloc_coherent()`，本机要 2244 pages），来自 `cma=256M` 的 CMA 区。
+- 这个 CMA 区平时也当普通可移动内存用（page cache/匿名页），所以 `CmaFree`
+  经常只有几 MB～几十 MB；`cma_alloc` 必须先把占用该区的页**迁移**走才能拿到
+  连续块，内存压力大时迁移失败 → `-EBUSY`。
+- 症状：loader 日志 `event=loader_error ... errno=12 Cannot allocate memory`，
+  dmesg：`cma: __cma_alloc: reserved: alloc failed, req-size: 2244 pages, ret: -16`
+  （cma bitmap 仍显示大部分 free，属误导）；随后 dma-direct 回退 buddy
+  order-12 分配，但 `CONFIG_ARCH_FORCE_MAX_ZONEORDER=10` → 只会 WARN 并失败。
+- **这不是 TA 堆泄漏**，也不是永久性的：内存缓过来后同一分配会成功（实测用
+  `/dev/dma_heap/reserved` 分配 9MB 正常）。每次重载 loader 都要重新做这次
+  9MB 分配，所以重载越频繁越容易踩中。
+- 现在的处理（2026-11-13）：
+  - `qsee-app-loader@.service` 的 `ExecStart` 被 drop-in
+    `60-retry-reclaim.conf` 换成 `/usr/local/bin/qsee-app-loader-retry`：失败时
+    自动 `drop_caches` + `compact_memory` 后**退避重试**，不再要求重启系统；
+    `NotifyAccess=all` + `TimeoutStartSec=0` 支持这种长时间重试。
+  - `fp-ta-watchdog` 对 CMA 失败只记日志（重试由 wrapper 负责），并加了每 60s
+    检查 loader 是否 inactive 的安全网；`-22`/TA 拒绝仍走“重启 loader”。
+  - 正确用法仍是：**加载一次、loader 常驻**，不要频繁手动 `--load`/重载。
+- 恢复：优先等 wrapper 重试成功（通常几秒内，drop_caches 后 CMA 立即有迁移目标）；
+  必要时手动 `systemctl restart qsee-app-loader@gfenu`；重启系统仍是最后兜底，
+  但已经不是 CMA 失败的必需操作。
 
 ## 3. TA "拒服务"（1062 / `scm call failed -22`）
 

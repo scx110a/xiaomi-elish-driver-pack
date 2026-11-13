@@ -20,6 +20,9 @@ install -m 0644 "$P/system/systemd/fp-ta-watchdog.service" /etc/systemd/system/
 # Limit loader restart rate on TA/CMA hard failures (see fingerprint/NOTES.md §2/§3)
 install -d /etc/systemd/system/qsee-app-loader@.service.d
 install -m 0644 "$P/system/systemd/qsee-app-loader@.service.d/50-restart-limit.conf" /etc/systemd/system/qsee-app-loader@.service.d/
+# Recover from transient CMA allocation failures without a reboot: the loader is
+# started through a retry wrapper that drops caches + compacts memory on failure.
+install -m 0644 "$P/system/systemd/qsee-app-loader@.service.d/60-retry-reclaim.conf" /etc/systemd/system/qsee-app-loader@.service.d/
 install -d /etc/systemd/system/fprintd.service.d
 install -m 0644 "$P/system/systemd/fprintd-60-goodix-qsee.conf" /etc/systemd/system/fprintd.service.d/60-goodix-qsee.conf
 
@@ -29,7 +32,7 @@ printf 'goodix_fp_spi\n' > /etc/modules-load.d/goodix-fp.conf
 
 echo "== 3) 脚本"
 install -d /usr/local/bin
-install -m 0755 "$P/system/bin/fp-sudo-prompt" "$P/system/bin/fp-sudo-prompt-done" "$P/system/bin/fp-ta-watchdog" /usr/local/bin/
+install -m 0755 "$P/system/bin/fp-sudo-prompt" "$P/system/bin/fp-sudo-prompt-done" "$P/system/bin/fp-ta-watchdog" "$P/system/bin/qsee-app-loader-retry" /usr/local/bin/
 
 echo "== 4) 可选：PAM（sudo 指纹优先、8s 超时回退密码）"
 if [ "$PAM" = 1 ]; then

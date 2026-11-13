@@ -1,20 +1,46 @@
 #!/bin/sh
 # Watch kernel + fprintd journal for Goodix/QSEECOM TA hard-failure signatures.
 # - "scm call failed -22" / QSEE invoke EINVAL / TA refusal: restart the loader
-#   (per fingerprint/NOTES.md this recovers without a reboot).
-# - "Cannot allocate memory" / CMA exhaustion: only a reboot reliably clears
-#   the fragmented pool; stop the loader and do not hammer it.
+#   (recovers without a reboot).
+# - CMA allocation failure ("Cannot allocate memory" / __cma_alloc): the loader
+#   is wrapped by qsee-app-loader-retry, which drops page cache + compacts
+#   memory and retries the load itself.  So we only log it here (restarting the
+#   unit from the watchdog would interrupt that retry loop); a periodic safety
+#   net below starts the unit again if it has gone inactive for any reason.
+#
+# A reboot is no longer the required response to CMA/memory pressure.
 COOLDOWN=${COOLDOWN:-45}
 UNIT="qsee-app-loader@gfenu.service"
 LOG=/var/log/fp-ta-watchdog.log
 last=0
 logger -t fp-ta-watchdog "started (unit=$UNIT cooldown=${COOLDOWN}s)"
+
+# Safety net: if the loader unit is not running (e.g. it hit systemd's start
+# limit during a long memory-pressure outage, or someone stopped it), try to
+# start it again every minute.  The retry wrapper makes this safe to do.
+(
+    while :; do
+        sleep 60
+        if ! systemctl is-active --quiet "$UNIT"; then
+            logger -t fp-ta-watchdog "loader unit inactive; trying start (retry wrapper handles CMA pressure)"
+            systemctl start "$UNIT" 2>&1 | logger -t fp-ta-watchdog
+            sleep 30
+        fi
+    done
+) &
+HELPER=$!
+trap 'kill "$HELPER" 2>/dev/null' EXIT INT TERM
+
 journalctl -f -o cat -n 0 _TRANSPORT=kernel + SYSLOG_IDENTIFIER=fprintd 2>/dev/null |
 while IFS= read -r line; do
     case "$line" in
         *"Cannot allocate memory"*|*"cma: __cma_alloc"*|*"CMA exhausted"*)
-            logger -t fp-ta-watchdog "TA/CMA memory exhausted; stopping $UNIT (reboot required)"
-            systemctl stop "$UNIT" 2>&1 | logger -t fp-ta-watchdog
+            now=$(date +%s)
+            if [ $((now - last)) -ge "$COOLDOWN" ]; then
+                last=$now
+                printf '%s CMA allocation pressure: %s\n' "$(date -Is)" "$line" >> "$LOG"
+                logger -t fp-ta-watchdog "CMA allocation failed; loader wrapper is reclaiming memory and retrying (no reboot required)"
+            fi
             continue
             ;;
         *"opening Goodix sensor"*) continue ;;

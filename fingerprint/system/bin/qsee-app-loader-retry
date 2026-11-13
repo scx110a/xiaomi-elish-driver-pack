@@ -1,0 +1,93 @@
+#!/bin/sh
+# qsee-app-loader-retry - start the QSEE TA loader, retrying with CMA reclaim.
+#
+# Why this exists (fingerprint/NOTES.md §2): loading the gfenu TA needs a
+# ~9 MiB physically contiguous buffer (qcom_tzmem_pool_new() ->
+# dma_alloc_coherent()).  On this platform the 256 MiB "cma=256M" pool doubles
+# as ordinary movable memory, so under memory pressure cma_alloc() can fail
+# with -EBUSY/-ENOMEM even though most of the pool shows as free: it cannot
+# find free pages to migrate the CMA range to.  dma-direct then falls back to a
+# buddy allocation of order 12, which is above MAX_PAGE_ORDER on this kernel
+# (CONFIG_ARCH_FORCE_MAX_ZONEORDER=10), so it can never succeed and the loader
+# dies with "Cannot allocate memory".
+#
+# A reboot is *not* actually required: dropping page cache (which is what sits
+# in the CMA pages) and compacting memory gives the allocator migration targets
+# again, and the next attempt succeeds.  This wrapper keeps the real loader
+# running unchanged on success, and on failure reclaims memory + retries with
+# backoff instead of leaving the TA unloaded until the next reboot.
+#
+# Installed as ExecStart of qsee-app-loader@.service by installing
+# 60-retry-reclaim.conf (which also sets NotifyAccess=all so the loader's
+# READY=1 reaches systemd through this wrapper, and TimeoutStartSec=0 so a long
+# memory-pressure outage does not abort the service).
+#
+# Tunables (environment): QAL_REAL, QAL_RECLAIM (0/1), QAL_MAX_DELAY, QAL_LOG_TAG
+set -u
+
+APP=${1:?usage: qsee-app-loader-retry APPLICATION}
+REAL=${QAL_REAL:-/usr/sbin/qsee-app-loader}
+RECLAIM=${QAL_RECLAIM:-1}
+MAX_DELAY=${QAL_MAX_DELAY:-120}
+TAG=${QAL_LOG_TAG:-qsee-app-loader-retry}
+
+child=
+stopping=0
+
+log() {
+    logger -t "$TAG" -- "$*" 2>/dev/null || echo "$TAG: $*" >&2
+}
+
+stop_handler() {
+    stopping=1
+    if [ -n "$child" ]; then
+        kill -TERM "$child" 2>/dev/null
+    fi
+}
+trap stop_handler INT TERM
+
+cma_state() {
+    awk '/^(CmaFree|MemAvailable|MemFree):/ { printf "%s=%s kB ", $1, $2 }' /proc/meminfo 2>/dev/null
+}
+
+reclaim_memory() {
+    [ "$RECLAIM" = 1 ] || return 0
+    [ "$(id -u)" = 0 ] || return 0
+    log "reclaiming memory before retry ($(cma_state))"
+    sync
+    echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
+    echo 1 > /proc/sys/vm/compact_memory 2>/dev/null
+    log "after reclaim ($(cma_state))"
+}
+
+attempt=0
+while [ "$stopping" -eq 0 ]; do
+    attempt=$((attempt + 1))
+    log "attempt $attempt: loading '$APP' via $REAL"
+    "$REAL" "$APP" &
+    child=$!
+    wait "$child"
+    rc=$?
+    child=
+    if [ "$stopping" -ne 0 ]; then
+        exit 0
+    fi
+    if [ "$rc" -eq 0 ]; then
+        exit 0
+    fi
+    log "loader failed (attempt $attempt, rc=$rc): $(cma_state)"
+    # Reclaim on every attempt while the pressure lasts; then every 4th attempt
+    # to avoid constantly dropping caches during a long outage.
+    if [ "$attempt" -le 6 ] || [ $((attempt % 4)) -eq 0 ]; then
+        reclaim_memory
+    fi
+    delay=$((attempt * 2))
+    [ "$delay" -gt "$MAX_DELAY" ] && delay=$MAX_DELAY
+    log "retrying in ${delay}s (the TA stays unavailable meanwhile)"
+    n=0
+    while [ "$n" -lt "$delay" ] && [ "$stopping" -eq 0 ]; do
+        sleep 1
+        n=$((n + 1))
+    done
+done
+exit 0
