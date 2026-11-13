@@ -26,6 +26,11 @@ lsmod | grep -q '^airoha_gps' && ok "airoha_gps 模块已加载" || wk "airoha_g
 
 # 3. 服务
 systemctl is-active --quiet airoha-gnssd && ok "airoha-gnssd active" || bad "airoha-gnssd 未运行"
+if journalctl -u airoha-gnssd -b --no-pager 2>/dev/null | grep -q 'runtime init sent'; then
+    ok "运行时初始化已发送（PAIR066/062/086/004）"
+else
+    wk "未看到 runtime init 日志（daemon 可能是旧版；见 gnss/README.md）"
+fi
 [ -L /dev/ttyGNSS0 ] && ok "/dev/ttyGNSS0 -> $(readlink /dev/ttyGNSS0)" || bad "/dev/ttyGNSS0 不存在"
 if [ -r /run/airoha-gnssd.state ]; then
     n=$(sed -n 's/^nmea_total=//p' /run/airoha-gnssd.state)

@@ -16,13 +16,31 @@ gpsd  ← /dev/ttyGNSS0 (pty) ← airoha-gnssd ← /dev/ttyHS1 921600 ← AG3335
                             /dev/airoha_gps（OPEN/CLOSE/DF/DI）
 ```
 
+## 运行时初始化序列（2026-11-13 实测）
+
+上电 → `$PAIR002` ACK 后，`airoha-gnssd` 还会发送（全部 runtime-only，不写 flash）：
+
+| 命令 | 校验和 | 作用 |
+|---|---|---|
+| `$PAIR066,1,1,1,1,0,0` | `*3A` | 启用 GPS+GLONASS+Galileo+BDS |
+| `$PAIR062,0,1` … `$PAIR062,6,1` | 见源码 | 使能 GGA/GLL/GSA/GSV/RMC/VTG/ZDA |
+| `$PAIR086,0` | `*28` | 关闭二进制调试日志 |
+| `$PAIR004` | `*3E` | hot start（PAIR066 后必须重启导航） |
+
+> 只发 `$PAIR002` 的旧版本会出现"有 NMEA、有卫星 SNR、但永远没有 fix、GSV 仰角/方位为空"。
+> 如遇此现象，确认 daemon 日志里有 `runtime init sent: PAIR021/066/062/086/004`。
+
 ## 关键事实（不要再走弯路）
 
 1. **芯片自己从 flash 启动**：BROM（115200）→ `ag3335_bootloader.bin`@`0x08003000`
    → 切 **921600**、打印 `Jump to addr 0x8013000` → 运行 `gnss_demo.bin` 固件。
    旧文档的“停在 BROM”是**波特率看错**：bootloader/firmware 只在 921600 说话。
-2. **上电后 ~1 秒内必须发 `$PAIR002*38`**（打开 DSP/启动导航），否则固件保持静默，
+2. **上电后 ~1 秒内必须发 `$PAIR002*38`**（打开 DSP），否则固件保持静默，
    只能重新上下电（vendor 配置 `wake_duration=1000`）。
+   **但只发 `$PAIR002` 不够**：还要发 `$PAIR066`（星座/NMEA 配置）+ `$PAIR062`
+   （NMEA 语句使能）+ `$PAIR086,0`（关二进制调试日志）+ `$PAIR004`（hot start），
+   导航才会真正开始。2026-11-13 实机验证：只发 PAIR002 时 16 颗星/SNR 20–40
+   但室外 5 分钟无 fix；补发该序列后室外 **2 分钟内 mode=3、12 星、GGA quality=1**。
 3. **不需要、也不要重刷 GNSS flash**。`partition_table` / bootloader / demo / config
    已在设备 flash 中且能正常启动。刷写流程只用于修复 flash（见 `extract/README.md`）。
 4. 旧文档说的 `HDL_START_CMD1–4` 就是 BROM 下载握手四步

@@ -13,3 +13,7 @@ __pycache__/
 *.swp
 *~
 .DS_Store
+
+# local build artifacts (gnss)
+/gnss/userspace/airoha-gnssd
+/gnss/userspace/gps-nmea-share

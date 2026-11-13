@@ -13,9 +13,11 @@
 
 ## 已知限制
 
-- `airoha-gnssd` 目前只做“上电 + PAIR002 + NMEA 转发 + 15 s 无数据自愈”；
-  AGPS/EPO、原始测量、NMEA 语句定制尚未接入。需要时用标准
-  `$PAIRnnn,…*cs` 命令扩展（XOR 校验，见 `docs/PROTOCOL.md`）。
+- `airoha-gnssd` 做：上电 + `$PAIR002` + **运行时初始化（PAIR021/066/062/086/004）**
+  + NMEA 转发 + 15 s 无数据自愈。AGPS/EPO、原始测量尚未接入。
+- 2026-11-13 实测：只发 PAIR002 时室外 5 分钟无 fix（有星/SNR 但无定位）；
+  补发 PAIR066/062/086/004 后室外 2 分钟内 fix（mode=3、12 星、GGA quality=1）。
+- 若更新 daemon 后仍无 fix：确认串口命令为 runtime-only（不写 flash），并检查天线/RF。
 - 室内/无天线时没有定位结果（GGA 字段为空、GSV 0 星）是正常现象。
 - 未定位前 gpsd 时间可能显示 2019 年（芯片无有效 RTC 日期，靠星历/网络对时）。
 - 守护进程常驻会保持 GNSS LDO 开启（约几十 mW 级）；如需要省电可停服务。

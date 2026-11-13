@@ -109,7 +109,7 @@
 | WiFi/BT | QCA6390（ath11k + btqca/hci_uart）；`wlp1s0`/`hci0` 正常 |
 | 键盘/鼠标 | USB HID：`Xiaomi Pad Keyboard`、`Xiaomi Pad Mouse`、`Xiaomi Pad`，外接蓝牙鼠标 |
 | 传感器 | 加速度/环境光/方向/指南针 heading（见 §2.1） |
-| **GNSS** | **Airoha AG3335**：`/dev/ttyHS1`（QUP5 UART，921600）+ `airoha_gps.ko`（供电/时钟/pinctrl）+ `airoha-gnssd`（PAIR002 + NMEA→pty）+ `gpsd`（`/dev/ttyGNSS0`，NMEA0183）+ `gps-nmea-share` → GeoClue2（`/run/gps-share.sock`，GNOME Maps 等取位置）；实机 NMEA 1 Hz，与传感器/罗盘可同时工作。地图应用：GNOME Maps 仅位置（不读传感器）；**Pure Maps 3.5.1（Flathub）已安装并验证**（地图渲染 + 合成定位下点击定位跳到目标蓝点；QtSensors iio 插件随 KDE 运行时提供）。朝向：本包 polkit 规则放行 geoclue 的 `ClaimCompass`，实测 GeoClue Location 同时返回位置与 heading≈177°；Pure Maps 的罗盘在跟随/导航且速度<10km/h 时激活（普通浏览模式点定位仅居中）。 |
+| **GNSS** | **Airoha AG3335**：`/dev/ttyHS1`（QUP5 UART，921600）+ `airoha_gps.ko`（供电/时钟/pinctrl）+ `airoha-gnssd`（PAIR002 + NMEA→pty）+ `gpsd`（`/dev/ttyGNSS0`，NMEA0183）+ `gps-nmea-share` → GeoClue2（`/run/gps-share.sock`，GNOME Maps 等取位置）；实机 NMEA 1 Hz，与传感器/罗盘可同时工作；**2026-11-13 室外真实 fix 验证：mode=3、12 星、GGA quality=1（此前仅验证 NMEA/合成 fix）**。地图应用：GNOME Maps 仅位置（不读传感器）；**Pure Maps 3.5.1（Flathub）已安装并验证**（地图渲染 + 合成定位下点击定位跳到目标蓝点；QtSensors iio 插件随 KDE 运行时提供）。朝向：本包 polkit 规则放行 geoclue 的 `ClaimCompass`，实测 GeoClue Location 同时返回位置与 heading≈177°；Pure Maps 的罗盘在跟随/导航且速度<10km/h 时激活（普通浏览模式点定位仅居中）。 |
 | 指纹 | Goodix GF3626：fprintd 录入/验证、GDM 解锁、sudo（NOPASSWD 未停用则被绕过） |
 | 相机闪光灯 | `/sys/class/leds/white:flash`（v4l2 flash LED） |
 | 视频编解码 | Venus V4L2 stateful：`vainfo` → H.264/HEVC 解码/编码；Firefox VA-API |

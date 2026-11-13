@@ -546,6 +546,15 @@
   （这些硬件所有 elish 型号都没有；DTB 中也无对应节点）。
 - 包统计：283 个包文件；SHA256SUMS 重新生成并校验；commit + push。
 
+**2026-11-13 上午：GNSS 真实定位修复（PAIR 运行时初始化）**
+- 症状：室外 5 分钟无 fix；有 16 星/SNR 20–40，但 GSV 仰角/方位为空、gpsd SKY=0。
+- 根因：`airoha-gnssd` 只发 `$PAIR002`（打开 DSP），未发星座/NMEA 配置与 hot start。
+- 实测：向芯片补发 `$PAIR066,1,1,1,1,0,0` + `$PAIR062` 系列 + `$PAIR086,0` + `$PAIR004`
+  后，室内即可看到 GSV talker 切换（命令被接受）；室外 2 分钟内 `mode=3`、12 星、GGA quality=1。
+- 已改源码 `gnss/userspace/airoha-gnssd.c`，启动后自动发送该序列（runtime-only，不写 flash）；
+  文档/verify 已更新。待用新 daemon 安装到系统（需一次 sudo）后永久生效；未装前重启会丢运行时命令。
+- 包内已提交推送（commit 见下）；`docs/HARDWARE-STATUS.md` 补充真实 fix 验证。
+
 **磁盘清理（同日）**：删除 16 个重复 boot_b 全分区备份、相机调试一次性备份、重复内核镜像、
 GNSS candidate boot img、apt 缓存等，释放 ~4.1GB（46G→42G used）；保留
 `/root/boot_b-known-good-20261112-2305.img`（sha256 f204631e…）与文档引用的 rollback 点。

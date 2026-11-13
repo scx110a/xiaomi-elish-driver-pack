@@ -59,7 +59,22 @@
 
 /* PAIR protocol: $PAIR002 = open DSP / start navigation.  The reply is
  * $PAIR001,002,0*39 (PAIR001 = ACK, 002 = command, 0 = success). */
-#define PAIR_OPEN_DSP   "$PAIR002*38\r\n"
+#define PAIR_OPEN_DSP        "$PAIR002*38\r\n"
+/* Runtime bring-up after DSP open.  $PAIR002 alone only opens the DSP;
+ * the chip then needs constellation/NMEA configuration and a hot start
+ * before it starts producing fixes.  All are runtime-only (no flash write)
+ * and were verified ACKed on this elish unit. */
+#define PAIR_QUERY_VERSION   "$PAIR021*39\r\n"
+#define PAIR_GNSS_ALL        "$PAIR066,1,1,1,1,0,0*3A\r\n"
+#define PAIR_NMEA_GGA_ON     "$PAIR062,0,1*3F\r\n"
+#define PAIR_NMEA_GLL_ON     "$PAIR062,1,1*3E\r\n"
+#define PAIR_NMEA_GSA_ON     "$PAIR062,2,1*3D\r\n"
+#define PAIR_NMEA_GSV_ON     "$PAIR062,3,1*3C\r\n"
+#define PAIR_NMEA_RMC_ON     "$PAIR062,4,1*3B\r\n"
+#define PAIR_NMEA_VTG_ON     "$PAIR062,5,1*3A\r\n"
+#define PAIR_NMEA_ZDA_ON     "$PAIR062,6,1*39\r\n"
+#define PAIR_DEBUG_OFF       "$PAIR086,0*28\r\n"
+#define PAIR_HOT_START       "$PAIR004*3E\r\n"
 
 /* Init window: the firmware only answers commands sent < ~1 s after power-on. */
 #define INIT_WINDOW_MS        900
@@ -436,6 +451,26 @@ static void read_tty(int timeout_ms)
 /* ------------------------------------------------------------------ */
 /* chip bring-up                                                       */
 
+/* Write a PAIR command to the tty, tolerating a non-blocking fd. */
+static void pair_send(const char *cmd)
+{
+	size_t off = 0, len = strlen(cmd);
+
+	while (off < len) {
+		ssize_t w = write(g.tty_fd, cmd + off, len - off);
+
+		if (w < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				sleep_ms(5);
+				continue;
+			}
+			logmsg("PAIR write failed: %s", strerror(errno));
+			return;
+		}
+		off += (size_t)w;
+	}
+}
+
 struct probe_ctx {
 	bool ack;
 	bool nmea;
@@ -510,6 +545,26 @@ static int chip_bringup(struct probe_ctx *ctx)
 		else
 			logmsg("chip streams NMEA (attempt %d, %d ms; no explicit ack seen)",
 			       attempt, ms_since(&t0));
+
+		/* PAIR002 only opens the DSP; configure constellations and NMEA,
+		 * then hot-start navigation.  Verified accepted by the AG3335 on
+		 * this unit (runtime-only; never writes flash). */
+		pair_send(PAIR_QUERY_VERSION);
+		sleep_ms(50);
+		pair_send(PAIR_GNSS_ALL);
+		sleep_ms(50);
+		pair_send(PAIR_NMEA_GGA_ON);
+		pair_send(PAIR_NMEA_GLL_ON);
+		pair_send(PAIR_NMEA_GSA_ON);
+		pair_send(PAIR_NMEA_GSV_ON);
+		pair_send(PAIR_NMEA_RMC_ON);
+		pair_send(PAIR_NMEA_VTG_ON);
+		pair_send(PAIR_NMEA_ZDA_ON);
+		sleep_ms(50);
+		pair_send(PAIR_DEBUG_OFF);
+		sleep_ms(50);
+		pair_send(PAIR_HOT_START);
+		logmsg("runtime init sent: PAIR021/066/062/086/004 (runtime-only)");
 		return 0;
 	}
 	return -1;
