@@ -1,14 +1,14 @@
 68a3ccc826a91a9f24949fb7d8f2cb0861c73d82e6fe01d7f97a1624e2bb2580  ./bioauth/audit-pam-20261113.md
 a04069fefbc44567dff385c3cb1ddac432dadc9c74941072e05d20b3d0b3d5c0  ./bioauth/config/bioauth.json
-87125f6b7bc1cab43577a4f684bc82e71ed1a8a2066877607c61b3aae4921e75  ./bioauth/daemon/bioauthd.py
+250f309c23bb965bafced0daf99509d6c4aada9b2e213817c45f841f3b5f402b  ./bioauth/daemon/bioauthd.py
 915224c65d66b15cf4020a8832f97c6a960a44d7f742e005a3c7921a43c50cfb  ./bioauth/gui/bioauth-ui
 541d6e4e2acd18f695c70fa64b074835d9d3c2bc4f7bacc567ded256a6a2c5a7  ./bioauth/gui/tests/helper_driver.py
 87a91063463513656356e4f1beb9671e8aafd4abd0e11f958808f56b85dec1c6  ./bioauth/INSTALL.md
 5afa5a73c9f186b4afaa82afcb5c1d7d7916674e1f86c68310a8cedfb32143da  ./bioauth/Makefile
 8b23c93d09447d095c91a3a079ecda4d6a3c317b27f24af828ed56dc0b530ad3  ./bioauth/pam.d/bioauth-test
 74347b6d18ddf1e2ef93b566edb06cfd5ebc3167add19ecfbadd0568b0733676  ./bioauth/pam.d/polkit-1
-b5229910c2aab567a778f3bd415839534c77dca0c2b56e58ea385df33d8beb5e  ./bioauth/pam/pam_bioauth.c
-81efe7ac889c5aba127cfa3696ad74066268a9901d08d04152f1484890910024  ./bioauth/README.md
+4b79df428bbe1071d9e9f3959b42b1d8f52b992cb74e1aefa6b2fdcde234ef89  ./bioauth/pam/pam_bioauth.c
+25c3d436110f5b97ce995f81eb8090f6d30a231c14af4ae1ca18b2857919e08c  ./bioauth/README.md
 b468aab73a6bd8beacd7a5df7a0a679d32f09f6840be875ef72a1226a6fc8481  ./bioauth/scripts/bioauth-doctor
 13e4212c892ec44dd908b3a2a047cd618d7d13048987a4de4620bb70ab3302b5  ./bioauth/scripts/fprintd-verify-queue
 7b63fd8fd100a25ef74816254a268498c71fabf95db34b701e12f2fae257b213  ./bioauth/scripts/install-bioauth.sh
@@ -16,7 +16,7 @@ b468aab73a6bd8beacd7a5df7a0a679d32f09f6840be875ef72a1226a6fc8481  ./bioauth/scri
 d854145c6de0deeb68a96d59fb884d496e1f75349010308896679f0d64ed1ff7  ./bioauth/tests/atspi_util.py
 3f6093e0777cefce0ed444fe734549ddd2d70cabb37e5effeec4be18b29adeb6  ./bioauth/tests/e2e_gui.py
 f96f17d205c9d1ff9a66dbf50b5ae002dd692389f1158acdaa4bb11f0c042f52  ./bioauth/tests/e2e_lib.py
-2da3d0ff110a10949b39dcd73a6a52fbb1da0361eff902a8236b17388d14d54b  ./bioauth/tests/e2e_tty.py
+7afedea2955ec03c7474bb6d4a4541bb54af0d189d4f48cf7ed907bb1d99a3f5  ./bioauth/tests/e2e_tty.py
 1725e5d60e94806c4ff20a865d19fd5679ab7cf19dfe6837c00794fdaee2ddb9  ./bioauth/tests/pam_auth.py
 3485998bc95f94c076c1dfecd735b8a3c4bbd0acca4fb85ad1de29bb6650d370  ./bioauth/tests/test_daemon.py
 3307ee07070e5d2b6de7648a29ea6323cad911af58bfa2180c031234e5d066f1  ./bioauth/uac-secure-screen-20261113.md

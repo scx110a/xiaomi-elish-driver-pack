@@ -10,6 +10,10 @@
  *   UI_TTY - /dev/tty based flow (sudo in a terminal).  While the fingerprint
  *            scanner is armed the terminal is put in non-canonical mode so
  *            "P" switches to the password prompt and "Q" cancels immediately.
+ *            In the password prompt, Ctrl-] (or F12) switches back to
+ *            fingerprint; pressing Enter on an empty password does the same,
+ *            which also works from an on-screen keyboard (no Ctrl/F-keys).
+ *            Ctrl-C cancels and falls back to the normal password stack.
  *   UI_GUI - bioauth-ui (single GTK window) run as the target user, connected
  *            with a socketpair on fd 3, newline-delimited JSON in both
  *            directions.  The helper must emit {"event":"ready"} once the
@@ -492,39 +496,124 @@ tty_close(void)
     }
 }
 
-static char *
-tty_read(int echo, const char *prompt)
+/* Read one byte from the terminal; timeout_ms < 0 waits forever. */
+static int
+tty_read_byte(int timeout_ms)
 {
-    char *buf;
-    size_t len = 0;
-    struct termios oldt, newt;
-    int have_term = 0;
+    struct pollfd pfd;
     char c;
 
     if (tty_fd < 0)
-        return NULL;
+        return -1;
+    pfd.fd = tty_fd;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    if (poll(&pfd, 1, timeout_ms) <= 0 || !(pfd.revents & POLLIN))
+        return -1;
+    if (read(tty_fd, &c, 1) != 1)
+        return -1;
+    return (unsigned char)c;
+}
+
+/* Read a password line in raw mode.
+ *
+ * Password bytes are collected without echo.  Two keys that cannot be produced
+ * as ordinary password characters switch back to fingerprint:
+ *   - Ctrl-]  (0x1d)
+ *   - F12     (ESC [ 2 4 ~)
+ * Ctrl-C / Ctrl-D cancels.  This mirrors the GUI's "使用指纹" button.
+ *
+ * Returns 0 = password in *out, 1 = cancel/timeout, 2 = switch to fingerprint.
+ * The caller restores canonical/echo mode before re-arming fingerprint mode.
+ */
+static int
+tty_read_password(char **out, int allow_fingerprint, int timeout_ms)
+{
+    struct termios saved, raw;
+    long long deadline = timeout_ms > 0 ? now_ms() + timeout_ms : 0;
+    char *buf = NULL;
+    size_t len = 0;
+    int have_term = 0;
+    int rc = 1;
+
+    *out = NULL;
+    if (tty_fd < 0)
+        return 1;
     tty_raw_off();
-    tty_msg("%s", prompt);
-    if (!echo && tcgetattr(tty_fd, &oldt) == 0) {
-        newt = oldt;
-        newt.c_lflag &= ~(ECHO);
-        have_term = tcsetattr(tty_fd, TCSANOW, &newt) == 0;
+    if (tcgetattr(tty_fd, &saved) == 0) {
+        raw = saved;
+        raw.c_lflag &= ~(ICANON | ECHO | ISIG);
+        raw.c_cc[VMIN] = 1;
+        raw.c_cc[VTIME] = 0;
+        have_term = tcsetattr(tty_fd, TCSANOW, &raw) == 0;
     }
+    tty_msg("密码: ");
     buf = malloc(256);
     if (!buf)
         goto out;
-    while (read(tty_fd, &c, 1) == 1) {
-        if (c == '\n' || c == '\r')
+    for (;;) {
+        int wait_ms = -1;
+        int c;
+
+        if (deadline > 0) {
+            long long left = deadline - now_ms();
+            if (left <= 0)
+                goto out;
+            wait_ms = (int)left;
+        }
+        c = tty_read_byte(wait_ms);
+        if (c < 0)
+            goto out;
+        if (c == '\r' || c == '\n') {
+            /* Empty Enter = switch back to fingerprint.  This is the only
+             * switch gesture that works from an on-screen keyboard (soft
+             * keyboards cannot send Ctrl-] or F12). */
+            if (len == 0 && allow_fingerprint) {
+                rc = 2;
+                goto out;
+            }
             break;
+        }
+        if (c == 3 || c == 4)          /* Ctrl-C / Ctrl-D */
+            goto out;
+        if (allow_fingerprint && c == 0x1d) {   /* Ctrl-] */
+            rc = 2;
+            goto out;
+        }
+        if (c == 0x1b) {               /* F12 = ESC [ 2 4 ~ */
+            int n1 = tty_read_byte(60);
+            int n2 = n1 == '[' ? tty_read_byte(60) : -1;
+            int n3 = n2 == '2' ? tty_read_byte(60) : -1;
+            int n4 = n3 == '4' ? tty_read_byte(60) : -1;
+            if (allow_fingerprint && n1 == '[' && n2 == '2' && n3 == '4' && n4 == '~') {
+                rc = 2;
+                goto out;
+            }
+            continue;
+        }
+        if (c == 0x7f || c == 0x08) {  /* DEL / Backspace */
+            if (len > 0)
+                len--;
+            continue;
+        }
+        if (c < 0x20)                  /* other control chars: ignore */
+            continue;
         if (len < 255)
-            buf[len++] = c;
+            buf[len++] = (char)c;
     }
     buf[len] = '\0';
-    tty_msg("\n");
+    *out = buf;
+    buf = NULL;
+    rc = 0;
 out:
     if (have_term)
-        tcsetattr(tty_fd, TCSANOW, &oldt);
-    return buf;
+        tcsetattr(tty_fd, TCSANOW, &saved);
+    if (buf) {
+        memset(buf, 0, 256);
+        free(buf);
+    }
+    tty_msg("\n");
+    return rc;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1018,6 +1107,10 @@ ui_password_mode(const char *text, int allow_fingerprint)
     if (ui_kind == UI_TTY) {
         if (text)
             tty_msg("%s\n", text);
+        if (allow_fingerprint)
+            tty_msg("  空回车切回指纹；Ctrl-C 取消\n");
+        else
+            tty_msg("  输入密码；Ctrl-C 取消\n");
         return;
     }
     if (ui_kind != UI_GUI)
@@ -1163,17 +1256,12 @@ ui_password_wait(const char *text, int allow_fingerprint, char **out, int timeou
     long long deadline;
 
     *out = NULL;
+    /* TTY: the banner/hint was already printed by the caller's
+     * ui_password_mode(); only print the actual prompt here so it does not
+     * appear twice.  Retries after a wrong password simply prompt again. */
+    if (ui_kind == UI_TTY)
+        return tty_read_password(out, allow_fingerprint, timeout_ms);
     ui_password_mode(text, allow_fingerprint);
-    if (ui_kind == UI_TTY) {
-        tty_raw_off();
-        if (timeout_ms > 0 && timeout_ms < 300000) {
-            struct pollfd pfd = { .fd = tty_fd, .events = POLLIN };
-            if (poll(&pfd, 1, timeout_ms) <= 0)
-                return 1;
-        }
-        *out = tty_read(0, "密码: ");
-        return *out ? 0 : 1;
-    }
     if (ui_kind != UI_GUI)
         return 1;
     deadline = now_ms() + (timeout_ms > 0 ? timeout_ms : 300000);

@@ -333,7 +333,12 @@ class FprintdBackend:
             finally:
                 with self.active_lock:
                     self.proc = None
-            if canceled:
+            if canceled or self.cancel_event.is_set():
+                # A cancel can arrive just after the child exited.  The old
+                # code only set `canceled` inside the polling loop, so this
+                # race was classified as "error" and incremented fail_count;
+                # switching to password while a scan is finishing could lock
+                # fingerprint for the user.  Re-check the event after the wait.
                 return False, "canceled"
             if timed_out:
                 return False, "timeout"

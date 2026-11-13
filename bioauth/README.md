@@ -46,7 +46,13 @@ Fingerprint (default, no initial choice):
   and password prompts share the same deadline.
 
 TTY mode (sudo in a terminal): same state machine; while the scan is armed the
-terminal is non-canonical and **P switches to password, Q cancels** (R15).
+terminal is non-canonical and **P switches to password, Q cancels** (R15). In the
+password prompt, **Ctrl-]** or **F12** switches back to fingerprint; pressing
+**Enter on an empty password** does the same, which also works on an on-screen
+keyboard (soft keyboards cannot send Ctrl-]/F12).  **Ctrl-C** cancels and falls
+back to the normal password stack, matching the GUI's cancel path.  These
+gestures cannot be produced as ordinary password characters, so normal
+passwords are unaffected.
 
 ## Configuration
 
