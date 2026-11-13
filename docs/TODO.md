@@ -111,6 +111,21 @@
   (b) 高风险：内核修复 s2idle resume 的 frpc_dsp 崩溃（对照 pMOS 6.12/6.13）；
 - 验收：唤醒 → 折叠背面，短期 ≤36s、长期 10–20s 内自动旋转可用。
 
+### 7. GNSS 按需启动 / 懒连接（低收益，暂不做）
+
+- 现状：`gps-nmea-share` 启动即连 gpsd，且 `airoha-gnssd` 开机自启 → GNSS LDO 常开，
+  与 Android 的"有客户端才开"不同。
+- 实测常开成本：**约 50–70 mW**（屏幕最亮系统 ~6.8 W 的 ~1%；24h 约 1.2–1.7 Wh ≈ 电池 3–5%/天，
+  实际休眠/关机更低）。
+- 方案（评估过）：bridge 启动只监听 `/run/gps-share.sock`，有客户端才连 gpsd
+  （gpsd.socket 按需拉起 gpsd → `Requires` 拉起 airoha）；最后客户端断开后关连接；
+  空闲 120s 后 `systemctl stop gpsd`（连带 airoha）；`airoha-gnssd` 改为 disable +
+  `StopWhenUnneeded=yes`；`gps-nmea-share` 去掉 `Requires=gpsd.service`。
+- 复杂度：~100 行 C + 4 个 unit 文件，约 2–4 小时；回滚简单（`systemctl enable airoha-gnssd`）。
+- 关键不确定性：GeoClue/gnome-shell 是否在无 App 时仍保持 `/run/gps-share.sock` 连接；
+  若常连则懒连接无收益，需再加 D-Bus 客户端计数（明显更复杂）。
+- 结论：省电上限仅 50–70 mW，**收益低，暂不做**；除非以后特别在意续航。
+
 ## 硬件限制 / 无法实现（不作为 TODO）
 
 以下由硬件/固件/上游限制决定，当前没有可执行项（详见 `HARDWARE-STATUS.md` §4）：
@@ -552,8 +567,12 @@
 - 实测：向芯片补发 `$PAIR066,1,1,1,1,0,0` + `$PAIR062` 系列 + `$PAIR086,0` + `$PAIR004`
   后，室内即可看到 GSV talker 切换（命令被接受）；室外 2 分钟内 `mode=3`、12 星、GGA quality=1。
 - 已改源码 `gnss/userspace/airoha-gnssd.c`，启动后自动发送该序列（runtime-only，不写 flash）；
-  文档/verify 已更新。待用新 daemon 安装到系统（需一次 sudo）后永久生效；未装前重启会丢运行时命令。
-- 包内已提交推送（commit 见下）；`docs/HARDWARE-STATUS.md` 补充真实 fix 验证。
+  文档/verify 已更新。
+- ✅ 2026-11-13 08:13 已安装到系统（指纹 sudo）：`/usr/local/sbin/airoha-gnssd` 更新，
+  `systemctl restart airoha-gnssd/gpsd/gps-nmea-share`；日志确认
+  `runtime init sent: PAIR021/066/062/086/004`，服务 enabled → 重启后仍生效。
+- 包内已提交推送 commit `92cb942`；tag `26.8.14` 已移到 `92cb942`；`git status` clean。
+- 办公室内 `mode=1` 属正常（无星）；下次室外 30–60 秒内应恢复 `mode=3`（此前实测 12 星、quality=1）。
 
 **磁盘清理（同日）**：删除 16 个重复 boot_b 全分区备份、相机调试一次性备份、重复内核镜像、
 GNSS candidate boot img、apt 缓存等，释放 ~4.1GB（46G→42G used）；保留
