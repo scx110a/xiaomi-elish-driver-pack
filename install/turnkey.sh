@@ -18,7 +18,10 @@
 #   --force                已安装的组件也重编
 #   --deps / --no-deps     自动安装 apt 依赖（默认装）
 #   --skip-extract / --skip-build / --skip-install / --skip-check
-#   --pam                  安装 sudo 指纹 PAM（安全敏感，需显式；脚本会备份）
+#   --pam                  安装 sudo 指纹 PAM（旧指纹栈；安全敏感，需显式；脚本会备份）
+#   --with-bioauth         可选：安装 bioauth 生物认证 PAM 栈（默认不装；不改 sudo/pkexec）
+#   --bioauth-sudo         可选：安装 bioauth 并接入 sudo（含 --with-bioauth）
+#   --bioauth-pkexec       可选：安装 bioauth 并接入 pkexec/polkit（含 --with-bioauth）
 #   --yes                  全部默认确认；--dry-run 只演示
 #
 # 分阶段执行示例：
@@ -30,6 +33,7 @@ TAG=turnkey
 
 ANDROID=""; PMOS=""; FP=""; FP_ADB=0
 WITH_GNSS=1; WITH_CAMERA=1; WITH_FP=1; WITH_KERNEL=0; WITH_REGVER=0
+WITH_BIOAUTH=0; BIOAUTH_SUDO=0; BIOAUTH_PKEXEC=0
 DO_DEPS=1; SKIP_EXTRACT=0; SKIP_BUILD=0; SKIP_INSTALL=0; SKIP_CHECK=0
 PAM=0; FORCE=0; KSRC=""; WRITE_BOOT=0
 
@@ -56,6 +60,10 @@ while [ $# -gt 0 ]; do
         --skip-install) SKIP_INSTALL=1; shift ;;
         --skip-check) SKIP_CHECK=1; shift ;;
         --pam) PAM=1; shift ;;
+        --with-bioauth|--bioauth) WITH_BIOAUTH=1; shift ;;
+        --bioauth-sudo) WITH_BIOAUTH=1; BIOAUTH_SUDO=1; shift ;;
+        --bioauth-pkexec) WITH_BIOAUTH=1; BIOAUTH_PKEXEC=1; shift ;;
+        --no-bioauth) WITH_BIOAUTH=0; BIOAUTH_SUDO=0; BIOAUTH_PKEXEC=0; shift ;;
         --force) FORCE=1; shift ;;
         --yes) ASSUME_YES=1; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
@@ -64,6 +72,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 export DRY_RUN ASSUME_YES
+if [ "$PAM" = 1 ] && { [ "$BIOAUTH_SUDO" = 1 ] || [ "$BIOAUTH_PKEXEC" = 1 ]; }; then
+    die "--pam（旧指纹 sudo PAM）不能和 --bioauth-sudo/--bioauth-pkexec 同时使用；二选一"
+fi
 
 need_root
 [ "$DRY_RUN" = 1 ] || mkdir -p "$BUILD_DIR" "$EXTRACT_DIR"
@@ -180,6 +191,24 @@ if [ "$SKIP_INSTALL" = 0 ]; then
     else
         log "跳过相机（--no-camera）"
     fi
+
+    if [ "$WITH_BIOAUTH" = 1 ]; then
+        step "5d) bioauth（可选）通用生物认证 PAM 栈"
+        BARGS=()
+        [ "$BIOAUTH_SUDO" = 1 ] && BARGS+=(--enable-sudo)
+        [ "$BIOAUTH_PKEXEC" = 1 ] && BARGS+=(--enable-pkexec)
+        [ "$SKIP_BUILD" = 1 ] && BARGS+=(--skip-build)
+        if [ "$DRY_RUN" = 1 ]; then
+            BARGS+=(--dry-run)
+        fi
+        run bash "$PKG_ROOT/bioauth/scripts/install-bioauth.sh" "${BARGS[@]}"
+        if [ "$BIOAUTH_SUDO" = 1 ] || [ "$BIOAUTH_PKEXEC" = 1 ]; then
+            warn "bioauth 已接入 PAM：请保留密码/root 救援通道，先测 pamtester bioauth-test 再正常用；回滚: sudo $PKG_ROOT/bioauth/scripts/install-bioauth.sh --rollback"
+        fi
+    else
+        log "跳过 bioauth（可选；加 --with-bioauth 安装，--bioauth-sudo/--bioauth-pkexec 接入 PAM）"
+    fi
+
 else
     log "跳过系统集成安装"
 fi
@@ -209,8 +238,10 @@ cat <<EOF
 2) 重启后验证：sudo $PKG_ROOT/install/check-all.sh
    或 sudo $PKG_ROOT/sensors/install/verify.sh && sensor-status
 3) 指纹录入（如装了指纹）：fprintd-enroll -f left-index-finger "\$USER"
-4) 可选 sudo 指纹 PAM：sudo ./install.sh --no-deps --skip-extract --skip-build --pam --yes
+4) 可选 sudo 指纹 PAM（旧指纹栈）：sudo ./install.sh --no-deps --skip-extract --skip-build --pam --yes
    或：sudo $PKG_ROOT/fingerprint/install/install-fingerprint-files.sh --pam --user
+   可选 bioauth 生物认证栈（默认不装）：sudo ./install.sh --no-deps --skip-extract --skip-build --with-bioauth --yes
+   接入 sudo/pkexec：加 --bioauth-sudo / --bioauth-pkexec（先读 $PKG_ROOT/bioauth/INSTALL.md）
 5) 内核若未自动装：sudo $PKG_ROOT/kernel/build-and-install.sh --kernel-src <源码> --write-boot
 6) 解压/移植时若换了目录：所有路径均由脚本自身定位，无需改文件。
 EOF

@@ -1,0 +1,26 @@
+#!/bin/sh
+# Serialize fprintd-verify across all callers (PAM daemon, terminal, tests).
+# If a fingerprint session is already active, queue behind it instead of
+# starting a concurrent TA operation.
+#
+# Tunables:
+#   FPRINTD_VERIFY_LOCK           lock path (default /run/lock/fprintd-verify.lock)
+#   FPRINTD_VERIFY_LOCK_TIMEOUT   max queue wait seconds (default 60)
+#   FPRINTD_VERIFY_REAL           real client (default /usr/bin/fprintd-verify)
+LOCK=${FPRINTD_VERIFY_LOCK:-/run/lock/fprintd-verify.lock}
+TIMEOUT=${FPRINTD_VERIFY_LOCK_TIMEOUT:-60}
+REAL=${FPRINTD_VERIFY_REAL:-/usr/bin/fprintd-verify}
+
+if [ ! -e "$LOCK" ]; then
+    ( umask 000; : >>"$LOCK" ) 2>/dev/null || {
+        echo "fprintd-verify: cannot create queue lock $LOCK" >&2
+        exit 75
+    }
+    chmod 0666 "$LOCK" 2>/dev/null || true
+fi
+exec 9>"$LOCK"
+if ! /usr/bin/flock -w "$TIMEOUT" 9; then
+    echo "fprintd-verify: another fingerprint session is active (queue timeout)" >&2
+    exit 75
+fi
+exec "$REAL" "$@"

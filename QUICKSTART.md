@@ -49,15 +49,22 @@ sensor-status
 3. **内核**：本包不附带内核源码；若未加 `--with-kernel`，从 Armbian 6.18.44 源码树执行
    `sudo ./kernel/build-and-install.sh --kernel-src <源码> --write-boot`（详见 `kernel/README.md`）。
 4. 指纹录入：`fprintd-enroll -f left-index-finger "$USER"`（可选）。
-5. sudo 指纹 PAM（可选，安全敏感）：
+5. sudo 指纹 PAM（可选，安全敏感，旧指纹栈）：
    `sudo ./install.sh --pam --no-deps --skip-extract --skip-build --yes`
    （脚本会备份原 `/etc/pam.d/sudo`；先确认能用密码回退）。
+6. bioauth 生物认证 PAM（可选，默认不装；新栈，推荐）：
+   - 只装：`sudo ./install.sh --no-deps --skip-extract --skip-build --with-bioauth --yes`
+   - 接 sudo/pkexec：加 `--bioauth-sudo` / `--bioauth-pkexec`
+   - 先读 `bioauth/INSTALL.md`；不要和上面第 5 条的 `--pam` 同时启用；
+     回滚：`sudo ./bioauth/scripts/install-bioauth.sh --rollback`。
 
 ## 常用分阶段命令
 
 | 目的 | 命令 |
 |---|---|
 | 只提取数据/固件 | `sudo ./install/extract-all.sh --android ... --pmos ...` |
+| 安装可选 bioauth（不改 PAM） | `sudo ./install.sh --no-deps --skip-extract --skip-build --with-bioauth --yes` |
+| bioauth 接入 sudo / pkexec | 加 `--bioauth-sudo` / `--bioauth-pkexec`（见 `bioauth/INSTALL.md`） |
 | 只编译用户态 | `sudo ./install/build-userspace.sh` |
 | 只装系统集成 | `sudo ./install.sh --no-deps --skip-extract --skip-build` |
 | 只自检 | `sudo ./install/check-all.sh` |

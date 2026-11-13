@@ -11,6 +11,8 @@ install.sh     一键安装入口（= install/turnkey.sh 的包装）
 kernel/        统一内核（详见下）
 sensors/       传感器子包（自包含，52 文件）
 fingerprint/   指纹子包（自包含）
+bioauth/       可选：通用生物认证 PAM 栈（PAM module + daemon + GTK4 helper；默认不装；
+               需显式 --with-bioauth / --bioauth-sudo / --bioauth-pkexec）
 gnss/          GNSS 子包：airoha_gps 驱动源码、airoha-gnssd 用户态、systemd/gpsd 集成、
                协议与逆向结论（gnss/docs/PROTOCOL.md）、flash 修复说明（extract/）
 install/       一键安装器（turnkey/extract-all/build-userspace + lib/）、备份启动槽脚本（backup-boot.sh）
@@ -68,6 +70,24 @@ Airoha AG3335 GNSS 子包（2026-11-12 打通）：
 | `polkit/` | `49-iio-sensor-proxy-geoclue.rules`：放行 geoclue 用户 claim iio 传感器（GeoClue compass heading 必需） |
 | `install/` | `install.sh`（含 gpsd 配置）、`verify.sh`、`uninstall.sh` |
 | `extract/` | 仅当 GNSS flash 损坏需重刷时的厂商文件提取说明（正常使用不需要） |
+
+## bioauth/（可选，默认不装）
+
+通用（不绑定 Goodix/TA）的生物认证 PAM 栈，复用本包 fprintd/libfprint 后端。合并包默认
+**不安装**；只有 `./install.sh --with-bioauth`（或 `--bioauth-sudo` / `--bioauth-pkexec`）
+才会安装，单独安装/回滚见 `bioauth/INSTALL.md`。
+
+| 内容 | 说明 |
+|---|---|
+| `README.md` / `INSTALL.md` | 组件说明与安装/回滚/安全红线 |
+| `daemon/bioauthd.py` | root daemon：状态/锁定/密码校验/fprintd 后端/session 级 cancel |
+| `pam/pam_bioauth.c` | PAM 模块（TTY + GUI 单窗口，req-scoped cancel，超时不计数） |
+| `gui/bioauth-ui` | 单窗口全屏 GTK4 “安全屏幕” helper（ready 握手 / attempt id / 日志脱敏） |
+| `gui/tests/helper_driver.py` | helper 独立驱动（截图/几何/AT-SPI 交互验证） |
+| `config/` `systemd/` `pam.d/` | 默认配置、systemd 单元、测试服务与 pkexec/polkit PAM |
+| `scripts/` | `install-bioauth.sh`（安装/接 sudo/接 pkexec/回滚/卸载/--dry-run）、`bioauth-doctor`、fprintd-verify 队列 |
+| `tests/` | daemon 单测 + TTY/GUI 端到端（无需 root，不碰系统 PAM） |
+| `audit-pam-*.md` / `uac-secure-screen-*.md` / `verification-*.md` | 独立审计、UAC/pkexec 对比与安全边界、独立验证报告 |
 
 ## fingerprint/
 

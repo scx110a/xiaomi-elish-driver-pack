@@ -1,0 +1,9 @@
+{
+  "max_failures": 3,
+  "fingerprint_timeout": 8,
+  "backend": "fprintd",
+  "socket": "/run/bioauth.sock",
+  "state_file": "/var/lib/bioauth/state.json",
+  "password_tries": 3,
+  "auth_timeout": 120
+}

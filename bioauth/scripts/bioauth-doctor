@@ -1,0 +1,384 @@
+#!/usr/bin/env python3
+"""bioauth-doctor - diagnose a bioauth installation and detect deploy skew.
+
+The most dangerous failure mode of this stack is installing one component
+without the others: the current PAM module requires the UI helper to emit the
+{"event":"ready"} handshake, while an older installed helper does not - the
+module then kills the window and falls back silently ("no popup").  This tool
+checks the installed files against the build tree, checks the helper's live
+ready handshake, the daemon protocol and the PAM configuration.
+
+Usage:
+    scripts/bioauth-doctor                 # full check
+    scripts/bioauth-doctor --no-live       # skip spawning the GUI helper
+    scripts/bioauth-doctor --json          # machine-readable
+
+Exit code: 0 = all checks pass, 1 = at least one failure.
+"""
+import argparse
+import hashlib
+import json
+import os
+import re
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+SOURCE = os.environ.get("BIOAUTH_SRC", "")
+MULTIARCH = subprocess.run(["cc", "-print-multiarch"], capture_output=True,
+                           text=True).stdout.strip() or "aarch64-linux-gnu"
+
+def build_paths(root):
+    return {
+        "module": os.path.join(root, "build", "pam_bioauth.so"),
+        "daemon": os.path.join(root, "daemon", "bioauthd.py"),
+        "helper": os.path.join(root, "gui", "bioauth-ui"),
+    }
+
+
+BUILD = build_paths(ROOT)
+INSTALLED = {
+    "module": f"/lib/{MULTIARCH}/security/pam_bioauth.so",
+    "daemon": "/usr/local/libexec/bioauthd",
+    "helper": "/usr/local/libexec/bioauth-ui",
+}
+CONFIG = "/etc/bioauth/config.json"
+SYSTEMD = "/etc/systemd/system/bioauthd.service"
+PAM_SUDO = "/etc/pam.d/sudo"
+DAEMON_SOCK = "/run/bioauth.sock"
+PROTO = 2
+
+RESULTS = []
+PREFIX = os.environ.get("BIOAUTH_DOCTOR_PREFIX", "")
+
+
+def add(name, ok, detail="", level="fail"):
+    RESULTS.append({"check": name, "ok": bool(ok), "detail": detail, "level": level})
+    if ok:
+        mark = "PASS"
+    elif level == "warn":
+        mark = "WARN"
+    elif level == "skip":
+        mark = "SKIP"
+    else:
+        mark = "FAIL"
+    print(f"[{mark}] {name}" + (f": {detail}" if detail else ""))
+
+
+def inst(kind):
+    return PREFIX + INSTALLED[kind] if PREFIX else INSTALLED[kind]
+
+
+def path_of(path):
+    return PREFIX + path if PREFIX else path
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def read_text(path):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
+def check_installed_files():
+    for key in INSTALLED:
+        p = inst(key)
+        add(f"installed {key} exists", os.path.exists(p), p)
+    have_tree = all(os.path.exists(p) for p in BUILD.values())
+    if not have_tree and not PREFIX:
+        add("source/build tree available", True,
+            "not available (installed doctor? pass --source <build tree>); "
+            "skipping byte comparison", level="skip")
+        return
+    for key, path in BUILD.items():
+        add(f"build {key} exists", os.path.exists(path), path)
+
+
+def check_build_skew():
+    if not all(os.path.exists(p) for p in BUILD.values()):
+        return
+    for key in ("module", "daemon", "helper"):
+        installed, built = inst(key), BUILD[key]
+        if not (os.path.exists(installed) and os.path.exists(built)):
+            continue
+        same = sha256(installed) == sha256(built)
+        add(f"{key} matches build tree", same,
+            "identical" if same else
+            f"installed={sha256(installed)[:12]} build={sha256(built)[:12]} "
+            f"(installed mtime {time.ctime(os.path.getmtime(installed))})")
+
+
+def check_proto_tokens():
+    inst_module = inst("module")
+    blob = b""
+    if os.path.exists(inst_module):
+        with open(inst_module, "rb") as fh:
+            blob = fh.read()
+    token = b"bioauth: pam_bioauth proto="
+    add("module carries BIOAUTH_PROTO token", token in blob,
+        f"expected {token!r} in {inst_module}")
+
+    helper_src = read_text(inst("helper"))
+    has_ready = '"event": "ready"' in helper_src or '"event":"ready"' in helper_src
+    add("helper emits ready event", has_ready,
+        f"inspect {INSTALLED['helper']}")
+    has_proto = f'"proto": {PROTO}' in helper_src or f'"proto":{PROTO}' in helper_src
+    add(f"helper ready carries proto={PROTO}", has_proto,
+        f"inspect {INSTALLED['helper']}", level="warn")
+
+    daemon_src = read_text(inst("daemon"))
+    add("daemon has req-scoped cancel (pending_cancels)", "pending_cancels" in daemon_src)
+    add("daemon treats scan timeout as non-failure",
+        'st["timeout"] = True' in daemon_src)
+
+
+def check_config():
+    text = read_text(path_of(CONFIG))
+    if not text:
+        add("config readable", False, CONFIG)
+        return
+    try:
+        cfg = json.loads(text)
+    except Exception as exc:
+        add("config parses", False, str(exc))
+        return
+    add("config parses", True, json.dumps(cfg))
+    for key in ("max_failures", "fingerprint_timeout", "password_tries",
+                "auth_timeout", "socket"):
+        add(f"config has {key}", key in cfg, str(cfg.get(key)), level="warn")
+
+    unit = read_text(path_of(SYSTEMD))
+    bad = [line for line in unit.splitlines()
+           if line.startswith("Environment=")
+           and ("BIOAUTH_MAX_FAILURES" in line or "BIOAUTH_FP_TIMEOUT" in line
+                or "BIOAUTH_PASSWORD_TRIES" in line or "BIOAUTH_AUTH_TIMEOUT" in line)]
+    add("systemd unit does not override limits via Environment",
+        not bad, "; ".join(bad) if bad else "ok")
+
+
+def check_pam_config():
+    if PREFIX:
+        add("read /etc/pam.d/sudo", True, "skipped for --prefix tree", level="skip")
+        return
+    text = read_text(PAM_SUDO)
+    if not text:
+        add("read /etc/pam.d/sudo", False, "not readable")
+        return
+    bio_lines = [line for line in text.splitlines()
+                 if "pam_bioauth" in line and not line.strip().startswith("#")]
+    add("sudo references pam_bioauth", bool(bio_lines),
+        bio_lines[0] if bio_lines else "not configured (rescue: pure password)")
+    if bio_lines:
+        bad = [line for line in bio_lines if re.search(r"\bdebug\b", line)]
+        add("sudo PAM line does NOT enable debug", not bad,
+            "; ".join(bad) if bad else "ok (debug is env-only for tests)")
+
+
+def check_pkexec_config():
+    path = path_of("/etc/pam.d/polkit-1")
+    if not os.path.exists(path):
+        add("pkexec/polkit PAM configured for bioauth", True,
+            "not enabled (pkexec falls back to /etc/pam.d/other: password only)",
+            level="skip")
+        return
+    text = read_text(path)
+    bio_lines = [line for line in text.splitlines()
+                 if "pam_bioauth" in line and not line.strip().startswith("#")]
+    add("pkexec/polkit PAM configured for bioauth", bool(bio_lines),
+        bio_lines[0] if bio_lines else "polkit-1 exists but does not use pam_bioauth",
+        level="warn" if not bio_lines else "fail")
+    if bio_lines:
+        bad = [line for line in bio_lines if re.search(r"\bdebug\b", line)]
+        add("pkexec/polkit PAM line does NOT enable debug", not bad,
+            "; ".join(bad) if bad else "ok (debug is env-only for tests)")
+        add("pkexec/polkit forces the GUI helper (prefer=gui)", "prefer=gui" in bio_lines[0],
+            bio_lines[0])
+        add("pkexec/polkit keeps the common-auth password fallback",
+            "common-auth" in text)
+
+
+def check_daemon():
+    if PREFIX:
+        add("daemon status responds", True, "skipped for --prefix tree", level="skip")
+        return
+    if not os.path.exists(DAEMON_SOCK):
+        add("daemon socket exists", False, DAEMON_SOCK)
+        return
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(5)
+        s.connect(DAEMON_SOCK)
+        user = os.environ.get("SUDO_USER") or os.environ.get("USER") or "root"
+        s.sendall((json.dumps({"op": "status", "user": user}) + "\n").encode())
+        data = b""
+        while b"\n" not in data:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            data += chunk
+        s.close()
+        resp = json.loads(data.decode())
+        add("daemon status responds", resp.get("ok", False),
+            f"backend={resp.get('backend')} fail_count={resp.get('fail_count')} "
+            f"locked={resp.get('locked')} max_failures={resp.get('max_failures')}")
+        if resp.get("locked"):
+            add("fingerprint not locked out", False,
+                "fingerprint is locked until a password success", level="warn")
+    except Exception as exc:
+        add("daemon status responds", False, repr(exc))
+
+
+def check_live_helper(override=None):
+    if PREFIX and not override:
+        add("live helper ready handshake", True, "skipped for --prefix tree",
+            level="skip")
+        return
+    helper = override or inst("helper")
+    label = "live helper ready handshake" if not override else \
+        f"live helper ready handshake ({helper})"
+    if not os.path.exists(helper):
+        add("live helper ready handshake", False, "helper not installed")
+        return
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    session_env = dict(os.environ)
+    session_env["XDG_RUNTIME_DIR"] = runtime
+    if "WAYLAND_DISPLAY" not in session_env:
+        try:
+            for name in os.listdir(runtime):
+                if name.startswith("wayland-"):
+                    session_env["WAYLAND_DISPLAY"] = name
+                    break
+        except OSError:
+            pass
+    session_env.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={runtime}/bus")
+    parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+    logfile = tempfile.NamedTemporaryFile(prefix="bioauth-doctor-ui-", delete=False)
+    session_env["BIOAUTH_UI_LOG"] = logfile.name
+    pid = os.fork()
+    if pid == 0:
+        os.close(parent.fileno())
+        os.dup2(child.fileno(), 3)
+        if child.fileno() != 3:
+            os.close(child.fileno())
+        os.execve(helper, ["bioauth-ui"], session_env)
+        os._exit(127)
+    os.close(child.fileno())
+    parent.settimeout(1.0)
+    try:
+        parent.sendall(b'{"op":"start","service":"bioauth-doctor"}\n')
+        deadline = time.time() + 8
+        ready = None
+        buf = b""
+        while time.time() < deadline:
+            try:
+                chunk = parent.recv(4096)
+            except socket.timeout:
+                continue
+            if not chunk:
+                break
+            buf += chunk
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    msg = json.loads(line)
+                except Exception:
+                    continue
+                if msg.get("event") == "ready":
+                    ready = msg
+                    break
+            if ready:
+                break
+        ok = ready is not None
+        proto = ready.get("proto") if ready else None
+        add(label, ok,
+            f"proto={proto}" if ok else
+            "helper did not answer ready within 8s (deploy skew / no GUI session)")
+        if ok:
+            add("live helper proto >= 2", (proto or 0) >= PROTO,
+                f"got {proto}", level="warn")
+    finally:
+        parent.close()
+        try:
+            os.kill(pid, 15)
+        except ProcessLookupError:
+            pass
+        try:
+            os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
+        ui_log = read_text(logfile.name)
+        os.unlink(logfile.name)
+        if ui_log:
+            interesting = [line for line in ui_log.splitlines()
+                           if any(k in line for k in ("error", "Error", "Traceback",
+                                                      "GTK", "ready", "present"))]
+            add("helper startup log has no fatal errors",
+                "Traceback" not in ui_log and "GTK4 unavailable" not in ui_log,
+                "; ".join(interesting[-3:]) if interesting else "ok", level="warn")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--no-live", action="store_true")
+    ap.add_argument("--live-helper", default=None,
+                    help="probe this helper binary instead of the installed one")
+    ap.add_argument("--prefix", default="",
+                    help="check a DESTDIR/prefix tree instead of / (skips runtime)")
+    ap.add_argument("--source", default="",
+                    help="path of the source/build tree to compare against "
+                         "(default: parent of this script; use it when running "
+                         "/usr/local/bin/bioauth-doctor)")
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args()
+
+    global PREFIX, SOURCE, ROOT, BUILD
+    PREFIX = args.prefix.rstrip("/")
+    if args.source:
+        SOURCE = args.source
+    if SOURCE:
+        ROOT = os.path.abspath(SOURCE)
+        BUILD = build_paths(ROOT)
+    check_installed_files()
+    check_build_skew()
+    check_proto_tokens()
+    check_config()
+    check_pam_config()
+    check_pkexec_config()
+    check_daemon()
+    if not args.no_live:
+        check_live_helper(args.live_helper)
+
+    failures = [r for r in RESULTS if not r["ok"] and r["level"] == "fail"]
+    warnings = [r for r in RESULTS if not r["ok"] and r["level"] == "warn"]
+    if args.json:
+        print(json.dumps({"results": RESULTS, "failures": len(failures),
+                          "warnings": len(warnings)}, indent=2, ensure_ascii=False))
+    print()
+    print(f"summary: {len(failures)} failure(s), {len(warnings)} warning(s), "
+          f"{len(RESULTS)} checks")
+    if failures:
+        print("FAILED checks: " + ", ".join(r["check"] for r in failures))
+        print("Fix by installing module+daemon+helper from the SAME build:")
+        print("  sudo scripts/install-bioauth.sh")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -45,6 +45,7 @@ GPU debayer + Venus 硬编）** 四套功能合并为一个**可重复安装的�
 | 传感器 | 休眠唤醒恢复 | ✅ | sleep hook + worker，唤醒 ~10s 后 iio 重新 claim（M2 后） |
 | 传感器 | 原始陀螺 / 磁力计三轴 / 接近（SAR） | 🚫 | 用户态 libssc/udev 未暴露；属软件缺口，非硬件驱动 |
 | **指纹** | Goodix GF3626（fprintd 录入/验证、GDM 锁屏/登录、sudo 指纹） | ✅ | TA 需自提；TA 拒服务看门狗自动恢复 |
+| **生物认证（可选）** | bioauth：通用 PAM 生物认证栈（指纹/密码，单窗口全屏 UI，sudo/pkexec 可选接入） | ✅ | **默认不装**；`--with-bioauth` 安装；回滚/救援见 `bioauth/INSTALL.md` |
 | **GNSS** | Airoha AG3335（QUP5 UART + PAIR + gpsd + GeoClue2） | ✅ | 室外真实定位已验证（mode=3、12 星）；GeoClue 位置与指南针 heading；Pure Maps 已验证 |
 | **相机** | 前摄 OV8856 3280×2464 / 后摄 OV13B10 4208×3120 全分辨率拍照/录像 | ✅ | GPU debayer + Venus HEVC/H.264，~30fps；两个 V4L2 虚拟相机 |
 | 相机 | 后摄 AF/AE/AWB、CN3927V VCM、EEPROM 24c64 | ✅ | 软件 AF 扫焦写 focus sysfs |
@@ -159,6 +160,8 @@ sensors/       传感器子包：systemd/udev/D-Bus 集成、启动/唤醒/诊�
                hexrpc/libssc/iio-sensor-proxy 补丁与编译说明、数据提取脚本、文档
 fingerprint/   指纹子包：qsee-supplicant/libfprint 源码与补丁、udev/systemd/PAM 配置、
                TA 提取、安装/验证/卸载脚本、文档
+bioauth/       可选：通用生物认证 PAM 栈（PAM module + daemon + GTK4 全屏 helper），
+               默认不装；--with-bioauth 安装，--bioauth-sudo/--bioauth-pkexec 接入 PAM
 gnss/          GNSS 子包：airoha_gps 驱动源码、airoha-gnssd/gps-nmea-share 用户态、
                systemd/gpsd/GeoClue 集成、协议与排障文档、flash 修复提取说明
 camera/        相机子包：elish-camera GPU 管线（前后摄全分辨率、GPU debayer、Venus 硬编、
@@ -252,7 +255,22 @@ sudo ./camera/install.sh           # 编译 elish-camera + 脚本/udev/自启/�
 bash ./camera/elish-camera/verify.sh
 ```
 
-#### 2.6 安全加固（可选，推荐）
+#### 2.6 bioauth 生物认证 PAM（可选，默认不装）
+
+在指纹栈之上提供通用生物认证：sudo/pkexec 可选接入、单窗口全屏“安全屏幕”、密码/指纹
+切换、锁定与超时。默认**不安装**，不改任何 PAM 配置。
+
+```bash
+# 只装文件（不改 sudo/pkexec）
+sudo ./install.sh --no-deps --skip-extract --skip-build --with-bioauth --yes
+# 接入 sudo / pkexec（会备份 PAM；先读安全红线）
+sudo ./install.sh --no-deps --skip-extract --skip-build --bioauth-sudo --yes
+sudo ./install.sh --no-deps --skip-extract --skip-build --bioauth-pkexec --yes
+# 回滚：sudo ./bioauth/scripts/install-bioauth.sh --rollback
+```
+详见 `bioauth/INSTALL.md`（不要与旧 `--pam` 指纹栈同时启用）。
+
+#### 2.7 安全加固（可选，推荐）
 
 关闭 GDM 自动登录、删除 sudo 免密，保留指纹授权（sudo/登录均可用指纹）：
 见 `docs/HARDENING.md`（本机实测：`sudo -n` 需密码、指纹 sudo 可用、唤醒/自动旋转正常）。

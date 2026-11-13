@@ -21,6 +21,17 @@
 | initramfs hook | `kernel/initramfs/hooks/xiaomi-elish-firmware`（修复版，跳过 slpi 符号链接/禁用文件） |
 | DTB 关键项 | `qcom,vmids=<3 15 5 6>`；`/fingerprint` `firmware-name="gfenu"`、`compatible="goodix,gf3626"` |
 
+## bioauth（可选组件，默认不装）
+
+| 项 | 值 |
+|---|---|
+| 组件 | 通用生物认证 PAM 栈（PAM module + root daemon + GTK4 单窗口 helper） |
+| 源码 | `bioauth/`（同源快照；含 tests / doctor / install脚本 / 审计与 UAC 文档） |
+| 安装 | 默认不装；`--with-bioauth`，PAM 接入用 `--bioauth-sudo` / `--bioauth-pkexec` |
+| 依赖 | fprintd/libfprint（本包指纹栈）；构建需 libpam0g-dev、python3-gi、gir1.2-gtk-4.0 |
+| 验证 | `bioauth-doctor` 31 项；`make check` / `check-tty` / `check-gui` |
+| 回滚 | `sudo bioauth/scripts/install-bioauth.sh --rollback`（PAM 备份在 `/root/bioauth-sudo-backup-*`） |
+
 ## 传感器用户态
 
 | 组件 | 版本/来源 | 安装后 sha256（参考） |

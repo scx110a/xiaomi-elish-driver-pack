@@ -204,6 +204,26 @@ gpspipe -w -n 5        # 室内无星 mode=1 正常；室外应出现 mode:2/3 �
 - `install.sh` 会同时安装 `gps-nmea-share` 并配置 GeoClue2（`/run/gps-share.sock`），
   GNOME Maps 等标准地图应用可直接通过 GeoClue 取位置（指南针 heading 见 `gnss/NOTES.md`）。
 
+## 6c. bioauth 生物认证 PAM（可选，默认不装）
+
+bioauth 是通用 PAM 生物认证栈（PAM module + root daemon + 单窗口 GTK4 全屏 UI），复用本包
+的 fprintd 指纹后端。**合并包默认不安装、不改 PAM**；需要时显式启用：
+
+```bash
+# 只装文件与测试服务（sudo/pkexec 保持原样）
+sudo ./install.sh --no-deps --skip-extract --skip-build --with-bioauth --yes
+# 接入 sudo（PAM_IGNORE 时回落到密码；会备份 /etc/pam.d/sudo）
+sudo ./install.sh --no-deps --skip-extract --skip-build --bioauth-sudo --yes
+# 接入 pkexec/polkit（取消时回落到 GNOME 密码框；会备份 /etc/pam.d/polkit-1）
+sudo ./install.sh --no-deps --skip-extract --skip-build --bioauth-pkexec --yes
+
+# 验证 / 回滚 / 卸载
+bioauth-doctor
+sudo ./bioauth/scripts/install-bioauth.sh --rollback
+sudo ./bioauth/scripts/install-bioauth.sh --uninstall
+```
+不要与旧指纹栈的 `--pam` 同时启用；完整安全说明见 `bioauth/INSTALL.md`。
+
 ## 7. 合并自检
 
 ```bash

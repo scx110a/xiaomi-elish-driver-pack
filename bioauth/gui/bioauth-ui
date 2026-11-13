@@ -1,0 +1,875 @@
+#!/usr/bin/python3
+"""bioauth-ui - single-window, fullscreen GTK4 authentication overlay.
+
+Presentation
+------------
+One undecorated fullscreen window owned by the calling user: a dark overlay
+covering the whole output with a centered authentication card (UAC /
+pkexec-agent style).  The window is a plain Wayland client: the compositor
+decides stacking, so this is *presentation* only, not a secure desktop.  See
+bioauth/uac-secure-screen-20261113.md for the honest threat-model discussion.
+
+Why the overlay background is opaque near-black instead of a translucent dim:
+on this GNOME 46 / mutter 46.2 Wayland session a *fullscreen* GTK4 client
+with a translucent background is direct-scanned-out (unredirected): its
+transparent pixels are composited against black, never against the desktop,
+so the visible result is a solid black screen with a black card (measured:
+uniform RGB(5,6,7) over a desktop that was RGB(128,132,136); the same window
+made non-fullscreen at 1280x800 composites the dim exactly as expected,
+RGB(54,56,59)).  A fullscreen client also cannot be made translucent with
+Gtk.Window.set_opacity(0.99).  Therefore the overlay deliberately paints an
+opaque near-black surface - the closest a plain client can get to the Windows
+UAC secure desktop (which also shows a frozen dimmed snapshot, not live
+content) - and covers the whole output including the GNOME top bar.
+
+Flow
+----
+Fingerprint is armed immediately (no initial choice).  The card always offers
+a switch button: fingerprint -> password, password -> fingerprint (when
+allowed).  Fingerprint retries are driven by the PAM module; the UI only
+displays state and forwards user choices.
+
+Protocol (newline-delimited JSON on fd 3, unchanged except "ready")
+-------------------------------------------------------------------
+  parent -> ui :
+      {"op":"start","service":...}
+      {"op":"fingerprint_wait","text":...}
+      {"op":"fingerprint_result","ok":...,"text":...}
+      {"op":"password","text":...,"allow_fingerprint":true|false}
+      {"op":"password_result","ok":...,"text":...}
+      {"op":"info","text":...}
+      {"op":"success","text":...}
+  ui -> parent :
+      {"event":"ready","proto":2}    # exactly once, after the window mapped
+      {"event":"switch_password"}
+      {"event":"switch_fingerprint"}
+      {"event":"password","value":"<base64>","attempt":N}
+      {"event":"cancel"}
+
+  The password op may carry an "attempt" prompt id (integer); the helper
+  stores the last one and echoes it in the submit event so PAM can discard
+  stale submissions.  If no attempt id was received it is omitted.
+
+Lifecycle contract
+------------------
+* "ready" is sent exactly once, from the first idle callback after the
+  Gtk.Window is mapped (i.e. the first frame has been queued).  If the window
+  never maps the helper does not send it; it logs that fact (BIOAUTH_UI_LOG)
+  and exits after MAP_DEADLINE_S.  If GTK init fails the helper logs and exits
+  non-zero without ever sending "ready".
+* On {"op":"success"} (or a successful fingerprint_result) the card turns
+  green immediately and a single ~1000 ms timer calls destroy() + main-loop
+  quit.  The helper does NOT wait for EOF on success and does not close
+  before the timer.  Duplicate success/fingerprint_result-ok messages never
+  schedule a second timer.
+* On EOF from the parent (dead PAM module) the helper exits promptly, unless
+  the green success dwell is already running.
+* A 180 s safety timeout (BIOAUTH_UI_TIMEOUT overrides, for tests only)
+  sends {"event":"cancel"} and exits.
+* Closing the window (Escape, 取消, WM close) sends {"event":"cancel"} and
+  exits.  destroy() + loop.quit() is used everywhere; Gtk.Window.close() is
+  never called from a timeout because that does not reliably destroy a
+  GTK4 window under Wayland (reproduced by the Lead).
+
+Environment (optional, diagnostics only)
+----------------------------------------
+  BIOAUTH_UI_LOG=/path/file  append timestamped lines (0600 on create) for
+                             start / gtk init / ready / every rx op / every
+                             tx event / destroy / exceptions.  Password
+                             values and submitted secrets are never logged.
+                             An unwritable path is ignored.
+  BIOAUTH_UI_TIMEOUT=<sec>   test hook overriding the 180 s safety timeout
+                             (0 disables it).  Not used by the PAM module.
+"""
+import base64
+import datetime
+import json
+import os
+import sys
+import threading
+import traceback
+
+FD = 3
+PROTO = 2
+DEFAULT_TIMEOUT_S = 180.0
+MAP_DEADLINE_S = 10
+SUCCESS_DWELL_MS = 1000
+
+_LOG_PATH = os.environ.get("BIOAUTH_UI_LOG", "") or ""
+_log_lock = threading.Lock()
+
+
+def log(message):
+    """Append one timestamped diagnostic line if BIOAUTH_UI_LOG is set.
+
+    Must never raise: a broken/unwritable log path must not break auth.
+    """
+    if not _LOG_PATH:
+        return
+    try:
+        stamp = datetime.datetime.now().astimezone().isoformat(timespec="milliseconds")
+        line = "%s [bioauth-ui:%d] %s\n" % (stamp, os.getpid(), message)
+        with _log_lock:
+            fd = os.open(_LOG_PATH, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            try:
+                os.write(fd, line.encode("utf-8", "replace"))
+            finally:
+                os.close(fd)
+    except Exception:
+        pass
+
+
+def _timeout_seconds():
+    raw = os.environ.get("BIOAUTH_UI_TIMEOUT", "")
+    if not raw:
+        return DEFAULT_TIMEOUT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        log("invalid BIOAUTH_UI_TIMEOUT=%r, using %s" % (raw, DEFAULT_TIMEOUT_S))
+        return DEFAULT_TIMEOUT_S
+    return value if value > 0 else 0.0
+
+
+log("start")
+
+try:
+    import gi
+
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Gdk", "4.0")
+    from gi.repository import Gdk, GLib, Gtk
+except Exception as exc:  # pragma: no cover - depends on the host
+    log("GTK4 import failed: %r" % (exc,))
+    print("bioauth-ui: GTK4 unavailable: %s" % (exc,), file=sys.stderr)
+    sys.exit(1)
+
+log("GTK4 import ok")
+
+write_lock = threading.Lock()
+
+CSS = b"""
+window.bioauth-overlay {
+    background-color: #08090d;
+    background-image: none;
+}
+.bioauth-dim {
+    background-color: #08090d;
+}
+.bioauth-card {
+    background-color: #1c1d22;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 18px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
+}
+.bioauth-title {
+    color: #f6f5f4;
+    font-size: 20px;
+    font-weight: bold;
+}
+.bioauth-title.bioauth-ok {
+    color: #51cf66;
+}
+.bioauth-subtitle {
+    color: #9a9aa2;
+    font-size: 12px;
+}
+.bioauth-status {
+    color: #deddda;
+    font-size: 15px;
+}
+.bioauth-status.bioauth-ok {
+    color: #51cf66;
+}
+.bioauth-detail {
+    color: #deddda;
+    font-size: 14px;
+    font-weight: bold;
+}
+.bioauth-detail.bioauth-error {
+    color: #ff7b72;
+}
+.bioauth-detail.bioauth-info {
+    color: #f9c74f;
+}
+.bioauth-icon {
+    color: #9a9aa2;
+}
+.bioauth-icon.bioauth-ok {
+    color: #51cf66;
+}
+.bioauth-spinner {
+    color: #c0bfbc;
+}
+entry.bioauth-entry {
+    background-color: rgba(255, 255, 255, 0.07);
+    background-image: none;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 9px;
+    padding: 9px 12px;
+    min-height: 24px;
+}
+entry.bioauth-entry:focus {
+    border-color: #3584e4;
+}
+entry.bioauth-entry:disabled {
+    color: rgba(255, 255, 255, 0.45);
+}
+button.bioauth-primary {
+    background-color: #3584e4;
+    background-image: none;
+    color: #ffffff;
+    border: none;
+    border-radius: 9px;
+    padding: 9px 20px;
+    font-weight: bold;
+    box-shadow: none;
+}
+button.bioauth-primary:hover {
+    background-color: #4a90e2;
+}
+button.bioauth-primary:disabled {
+    background-color: rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.42);
+}
+button.bioauth-secondary {
+    background-color: rgba(255, 255, 255, 0.08);
+    background-image: none;
+    color: #deddda;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 9px;
+    padding: 8px 16px;
+    box-shadow: none;
+}
+button.bioauth-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+button.bioauth-link {
+    background-color: transparent;
+    background-image: none;
+    color: #9a9aa2;
+    border: none;
+    box-shadow: none;
+    padding: 8px 12px;
+}
+button.bioauth-link:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 9px;
+}
+"""
+
+_ERROR_WORDS = (
+    "不匹配",
+    "错误",
+    "失败",
+    "停用",
+    "不可用",
+    "锁定",
+    "超时",
+    "拒绝",
+    "错误",
+)
+_SUCCESS_TEXTS = ("验证通过", "验证成功", "认证成功", "验证已通过")
+
+
+def _is_error_text(text):
+    return any(word in text for word in _ERROR_WORDS)
+
+
+class AuthWindow(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="bioauth")
+        self.set_decorated(False)
+        self.add_css_class("bioauth-overlay")
+
+        self._loop = GLib.MainLoop()
+        self._closing = False
+        self._success = False
+        self._ready_sent = False
+        self._mapped = False
+        self._pending = []
+        self._mode = "fingerprint"
+        self._allow_fingerprint = True
+        self._verifying = False
+        self._service = ""
+        self._attempt = None
+        self._timeout_id = 0
+        self._map_deadline_id = 0
+        self._success_timer_id = 0
+
+        self._build_ui()
+
+        self.connect("map", self._on_map)
+        self.connect("destroy", self._on_destroy)
+        self.connect("close-request", self._on_close_request)
+
+        keys = Gtk.EventControllerKey()
+        keys.connect("key-pressed", self._on_key)
+        self.add_controller(keys)
+
+        # Messages may arrive before the main loop starts; the reader thread
+        # hands them to the main loop through idle callbacks.
+        self._reader = threading.Thread(
+            target=self._read_loop, name="bioauth-proto", daemon=True
+        )
+        self._reader.start()
+
+    # ------------------------------------------------------------------ UI
+    def _build_ui(self):
+        overlay = Gtk.Overlay()
+        self.set_child(overlay)
+
+        dim = Gtk.Box()
+        dim.add_css_class("bioauth-dim")
+        dim.set_hexpand(True)
+        dim.set_vexpand(True)
+        overlay.set_child(dim)
+
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        card.add_css_class("bioauth-card")
+        card.set_halign(Gtk.Align.CENTER)
+        card.set_valign(Gtk.Align.CENTER)
+        card.set_size_request(460, -1)
+        overlay.add_overlay(card)
+
+        inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        inner.set_margin_top(26)
+        inner.set_margin_bottom(22)
+        inner.set_margin_start(30)
+        inner.set_margin_end(30)
+        card.append(inner)
+
+        # Header: icon + title + service subtitle.
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        self.icon = Gtk.Image.new_from_icon_name("dialog-password-symbolic")
+        self.icon.set_pixel_size(44)
+        self.icon.add_css_class("bioauth-icon")
+        self.icon.set_valign(Gtk.Align.CENTER)
+        header.append(self.icon)
+
+        title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        title_box.set_valign(Gtk.Align.CENTER)
+        self.title = Gtk.Label(label="需要认证")
+        self.title.add_css_class("bioauth-title")
+        self.title.set_xalign(0)
+        self.title.set_ellipsize(3)  # Pango.EllipsizeMode.END
+        self.title.set_max_width_chars(34)
+        title_box.append(self.title)
+
+        self.subtitle = Gtk.Label(label="")
+        self.subtitle.add_css_class("bioauth-subtitle")
+        self.subtitle.set_xalign(0)
+        self.subtitle.set_ellipsize(3)
+        self.subtitle.set_max_width_chars(40)
+        self.subtitle.set_visible(False)
+        title_box.append(self.subtitle)
+        header.append(title_box)
+        inner.append(header)
+
+        self.status = Gtk.Label(label="正在准备认证…")
+        self.status.add_css_class("bioauth-status")
+        self.status.set_xalign(0)
+        self.status.set_wrap(True)
+        self.status.set_wrap_mode(1)  # Pango.WrapMode.WORD_CHAR
+        self.status.set_max_width_chars(38)
+        inner.append(self.status)
+
+        # Persistent result line (fingerprint mismatch / password error /
+        # locked / unavailable).  It is never overwritten by the next
+        # "please touch the sensor" prompt.
+        self.detail = Gtk.Label(label="")
+        self.detail.add_css_class("bioauth-detail")
+        self.detail.set_xalign(0)
+        self.detail.set_wrap(True)
+        self.detail.set_wrap_mode(1)
+        self.detail.set_max_width_chars(38)
+        self.detail.set_visible(False)
+        inner.append(self.detail)
+
+        spinner_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.spinner = Gtk.Spinner()
+        self.spinner.add_css_class("bioauth-spinner")
+        self.spinner.set_size_request(20, 20)
+        self.spinner.set_halign(Gtk.Align.START)
+        spinner_row.append(self.spinner)
+        inner.append(spinner_row)
+
+        # Password controls: entry + verify (primary action), switching is
+        # secondary and lives in the footer below.
+        self.pwrow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.pwrow.set_visible(False)
+        self.entry = Gtk.Entry()
+        self.entry.add_css_class("bioauth-entry")
+        self.entry.set_visibility(False)
+        self.entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+        self.entry.set_placeholder_text("密码")
+        self.entry.set_hexpand(True)
+        try:  # screen-reader / AT-SPI label for the unlabelled entry
+            self.entry.update_property([Gtk.AccessibleProperty.LABEL], ["密码"])
+        except Exception:
+            pass
+        self.entry.connect("activate", self.on_password)
+        self.pwrow.append(self.entry)
+        self.pwbtn = Gtk.Button(label="验证密码")
+        self.pwbtn.add_css_class("bioauth-primary")
+        self.pwbtn.set_valign(Gtk.Align.CENTER)
+        self.pwbtn.connect("clicked", self.on_password)
+        self.pwrow.append(self.pwbtn)
+        inner.append(self.pwrow)
+
+        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.switch_btn = Gtk.Button(label="使用密码")
+        self.switch_btn.add_css_class("bioauth-secondary")
+        self.switch_btn.connect("clicked", self.on_switch)
+        footer.append(self.switch_btn)
+        spacer = Gtk.Box()
+        spacer.set_hexpand(True)
+        footer.append(spacer)
+        self.cancel_btn = Gtk.Button(label="取消")
+        self.cancel_btn.add_css_class("bioauth-link")
+        self.cancel_btn.connect("clicked", lambda *_: self._cancel_and_close("cancel-button"))
+        footer.append(self.cancel_btn)
+        inner.append(footer)
+
+        self.spinner_row = spinner_row
+        self.footer = footer
+
+    # ------------------------------------------------------------- protocol
+    def _read_loop(self):
+        try:
+            stream = os.fdopen(
+                FD, "r", encoding="utf-8", errors="replace", buffering=1
+            )
+        except OSError as exc:
+            log("fd3 open failed: %r" % (exc,))
+            GLib.idle_add(self._on_eof, "fd3-open-failed")
+            return
+        try:
+            for line in stream:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    msg = json.loads(line)
+                except Exception:
+                    log("rx malformed line: %r" % (line[:120],))
+                    continue
+                if not isinstance(msg, dict):
+                    log("rx non-object json ignored")
+                    continue
+                op = msg.get("op")
+                detail = ""
+                if op in ("fingerprint_result", "password_result"):
+                    detail = " ok=%r text=%r" % (
+                        msg.get("ok"),
+                        str(msg.get("text", ""))[:80],
+                    )
+                elif op in ("fingerprint_wait", "password", "info", "success", "start"):
+                    detail = " text=%r" % (str(msg.get("text", ""))[:80],)
+                    if op == "start":
+                        detail = " service=%r" % (msg.get("service"),)
+                    if op == "password":
+                        detail += " allow_fingerprint=%r attempt=%r" % (
+                            msg.get("allow_fingerprint", True),
+                            msg.get("attempt"),
+                        )
+                log("rx op=%r%s" % (op, detail))
+                GLib.idle_add(self._on_msg, msg)
+        except OSError as exc:
+            log("reader OSError: %r" % (exc,))
+        finally:
+            log("fd3 EOF")
+            GLib.idle_add(self._on_eof, "eof")
+
+    def _on_msg(self, msg):
+        if self._closing:
+            return False
+        if not self._ready_sent:
+            # Buffer until the window is mapped; ready must be the first
+            # event the parent sees.
+            self._pending.append(msg)
+            return False
+        self._handle(msg)
+        return False
+
+    def _handle(self, msg):
+        op = msg.get("op")
+        if op == "start":
+            service = str(msg.get("service") or "").strip()
+            if service:
+                self._service = service
+                self.subtitle.set_text("服务：" + service)
+                self.subtitle.set_visible(True)
+            self.show_fingerprint("请按指纹…")
+        elif op == "fingerprint_wait":
+            self.show_fingerprint(str(msg.get("text") or "请按指纹…"))
+        elif op == "fingerprint_result":
+            self.spinner.stop()
+            self.spinner_row.set_visible(False)
+            self._verifying = False
+            if msg.get("ok"):
+                self.show_success(str(msg.get("text") or "指纹验证成功"))
+            else:
+                text = str(msg.get("text") or "指纹不匹配")
+                self._mode = "fingerprint"
+                self.title.set_text("指纹验证")
+                self.status.set_text("请再次按指纹…")
+                self._set_detail(text, "error")
+                self._show_switch("使用密码", visible=True, sensitive=True)
+                self.entry.set_sensitive(True)
+                self.pwbtn.set_sensitive(True)
+        elif op == "password":
+            self.show_password(msg)
+        elif op == "password_result":
+            self._verifying = False
+            if msg.get("ok"):
+                self.show_success(str(msg.get("text") or "密码验证成功"))
+            else:
+                self._mode = "password"
+                self.title.set_text("密码验证")
+                self.status.set_text("请输入密码")
+                self._set_detail(str(msg.get("text") or "密码错误"), "error")
+                self._password_ready()
+                self.spinner.stop()
+                self.spinner_row.set_visible(False)
+        elif op == "info":
+            text = str(msg.get("text") or "")
+            if _is_error_text(text):
+                self._set_detail(text, "error")
+            elif text:
+                self.status.set_text(text)
+        elif op == "success":
+            self.show_success(str(msg.get("text") or "验证通过"))
+        else:
+            log("rx unknown op=%r ignored" % (op,))
+
+    # ------------------------------------------------------- state helpers
+    def _set_detail(self, text, kind="normal"):
+        text = (text or "").strip()
+        self.detail.remove_css_class("bioauth-error")
+        self.detail.remove_css_class("bioauth-info")
+        self.detail.set_text(text)
+        self.detail.set_visible(bool(text))
+        if text and kind == "error":
+            self.detail.add_css_class("bioauth-error")
+        elif text and kind == "info":
+            self.detail.add_css_class("bioauth-info")
+
+    def _set_status(self, text, kind="normal"):
+        self.status.remove_css_class("bioauth-ok")
+        self.status.set_text(text)
+        if kind == "ok":
+            self.status.add_css_class("bioauth-ok")
+
+    def _show_switch(self, label, visible=True, sensitive=True):
+        self.switch_btn.set_label(label)
+        self.switch_btn.set_visible(visible)
+        self.switch_btn.set_sensitive(sensitive)
+
+    def _password_ready(self):
+        self._verifying = False
+        self.pwrow.set_visible(True)
+        self.entry.set_visible(True)
+        self.entry.set_sensitive(True)
+        self.pwbtn.set_visible(True)
+        self.pwbtn.set_sensitive(True)
+        self.entry.set_text("")
+        self.entry.grab_focus()
+
+    def show_fingerprint(self, text):
+        if self._success:
+            return
+        previous = self._mode
+        self._mode = "fingerprint"
+        self._verifying = False
+        self.title.set_text("指纹验证")
+        self._set_status(text or "请按指纹…")
+        if previous != "fingerprint" and previous != "switching":
+            self._set_detail("", "normal")
+        self.pwrow.set_visible(False)
+        self.entry.set_sensitive(True)
+        self.pwbtn.set_sensitive(True)
+        self._show_switch("使用密码", visible=True, sensitive=True)
+        self.cancel_btn.set_visible(True)
+        self.spinner_row.set_visible(True)
+        self.spinner.start()
+
+    def show_password(self, msg):
+        if self._success:
+            return
+        self._mode = "password"
+        self._allow_fingerprint = bool(msg.get("allow_fingerprint", True))
+        self._attempt = msg.get("attempt")
+        if self._attempt is not None:
+            try:
+                self._attempt = int(self._attempt)
+            except (TypeError, ValueError):
+                self._attempt = None
+        self.title.set_text("密码验证")
+        self._set_status("请输入密码")
+        text = str(msg.get("text") or "").strip()
+        if text and _is_error_text(text):
+            self._set_detail(text, "error")
+        self.spinner.stop()
+        self.spinner_row.set_visible(False)
+        self._password_ready()
+        self.cancel_btn.set_visible(True)
+        self._show_switch(
+            "使用指纹",
+            visible=self._allow_fingerprint,
+            sensitive=self._allow_fingerprint,
+        )
+
+    def show_success(self, text):
+        if self._success or self._closing:
+            return
+        self._success = True
+        text = (text or "").strip()
+        self._mode = "success"
+        self.title.set_text("验证通过")
+        self.title.add_css_class("bioauth-ok")
+        self.icon.set_from_icon_name("object-select-symbolic")
+        self.icon.add_css_class("bioauth-ok")
+        if text and not any(key in text for key in _SUCCESS_TEXTS):
+            self._set_status(text, "ok")
+        else:
+            self.status.set_text("")
+        self._set_detail("", "normal")
+        self.spinner.stop()
+        self.spinner_row.set_visible(False)
+        self.pwrow.set_visible(False)
+        self.footer.set_visible(False)
+        self._show_switch("", visible=False, sensitive=False)
+        self.cancel_btn.set_visible(False)
+        log("success shown; arming %d ms close timer" % SUCCESS_DWELL_MS)
+        self._success_timer_id = GLib.timeout_add(
+            SUCCESS_DWELL_MS, self._on_success_timeout
+        )
+
+    def _on_success_timeout(self):
+        self._success_timer_id = 0
+        log("success dwell elapsed")
+        self._finish("success")
+        return False
+
+    # --------------------------------------------------------- user input
+    def on_switch(self, *_):
+        if self._success or self._closing:
+            return
+        if self._mode == "fingerprint":
+            self._mode = "switching"
+            self._show_switch("使用密码", visible=True, sensitive=False)
+            self._set_status("正在切换到密码验证…")
+            send({"event": "switch_password"})
+        elif self._mode == "password" and self._allow_fingerprint:
+            self._mode = "switching"
+            self._show_switch("使用指纹", visible=True, sensitive=False)
+            self._set_status("正在切换到指纹验证…")
+            self.spinner_row.set_visible(True)
+            self.spinner.start()
+            send({"event": "switch_fingerprint"})
+
+    def on_password(self, *_):
+        if self._success or self._closing:
+            return
+        if self._mode != "password" or self._verifying:
+            # Stale double-submit: PAM already has a password in flight.
+            return
+        value = self.entry.get_text()
+        if not value:
+            self.entry.grab_focus()
+            return
+        self._verifying = True
+        self._mode = "password"
+        self.entry.set_text("")
+        self.entry.set_sensitive(False)
+        self.pwbtn.set_sensitive(False)
+        self._set_status("正在验证密码…")
+        self.spinner_row.set_visible(True)
+        self.spinner.start()
+        event = {
+            "event": "password",
+            "value": base64.b64encode(value.encode("utf-8")).decode("ascii"),
+        }
+        if self._attempt is not None:
+            event["attempt"] = self._attempt
+        send(event)
+        log("password submitted (value redacted, attempt=%r)" % (self._attempt,))
+
+    def _on_key(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_Escape:
+            self._cancel_and_close("escape")
+            return True
+        return False
+
+    def _on_close_request(self, *_):
+        log("close-request")
+        self._cancel_and_close("close-request")
+        return True  # we destroy ourselves in _finish()
+
+    # ------------------------------------------------------------ lifecycle
+    def _on_map(self, *_):
+        if self._mapped:
+            return
+        self._mapped = True
+        log("window mapped")
+        if self._map_deadline_id:
+            try:
+                GLib.source_remove(self._map_deadline_id)
+            except Exception:
+                pass
+            self._map_deadline_id = 0
+        GLib.idle_add(self._emit_ready)
+
+    def _emit_ready(self):
+        if self._ready_sent or self._closing:
+            return False
+        self._ready_sent = True
+        log("window ready; sending ready event proto=%d" % PROTO)
+        send({"event": "ready", "proto": PROTO})
+        pending, self._pending = self._pending, []
+        for msg in pending:
+            self._handle(msg)
+        return False
+
+    def _on_map_deadline(self):
+        self._map_deadline_id = 0
+        if self._mapped or self._closing:
+            return False
+        log("window did not map within %d s; aborting without ready" % MAP_DEADLINE_S)
+        self._finish("map-deadline")
+        return False
+
+    def _on_eof(self, reason):
+        if self._closing:
+            return False
+        if not self._ready_sent:
+            log("EOF before ready (%s); exiting" % reason)
+            self._finish("eof-before-ready")
+            return False
+        if self._success:
+            log("EOF during success dwell; keeping green until timer")
+            return False
+        log("EOF without success (%s); exiting" % reason)
+        self._finish("eof")
+        return False
+
+    def _on_timeout(self):
+        self._timeout_id = 0
+        log("safety timeout reached; cancelling")
+        if not self._success:
+            send({"event": "cancel"})
+        self._finish("timeout")
+        return False
+
+    def _cancel_and_close(self, reason):
+        if self._closing:
+            return
+        if not self._success:
+            send({"event": "cancel"})
+        self._finish(reason)
+
+    def _on_destroy(self, *_):
+        log("window destroy signal")
+        self._quit_loop()
+
+    def _quit_loop(self):
+        try:
+            if self._loop.is_running():
+                self._loop.quit()
+        except Exception:
+            log("loop quit failed: %r" % (traceback.format_exc(),))
+
+    def _finish(self, reason):
+        if self._closing:
+            return
+        self._closing = True
+        log("finish reason=%r" % (reason,))
+        for attr in ("_timeout_id", "_map_deadline_id", "_success_timer_id"):
+            source_id = getattr(self, attr, 0)
+            if source_id:
+                try:
+                    GLib.source_remove(source_id)
+                except Exception:
+                    pass
+                setattr(self, attr, 0)
+        try:
+            self.destroy()  # not close(): close() from a timeout does not die
+        except Exception:
+            log("destroy failed: %r" % (traceback.format_exc(),))
+        self._quit_loop()
+
+    def run(self):
+        timeout = _timeout_seconds()
+        if timeout > 0:
+            self._timeout_id = GLib.timeout_add(
+                int(round(timeout * 1000)), self._on_timeout
+            )
+            log("safety timeout armed: %ss" % timeout)
+        else:
+            log("safety timeout disabled by BIOAUTH_UI_TIMEOUT=0")
+        self._map_deadline_id = GLib.timeout_add_seconds(
+            MAP_DEADLINE_S, self._on_map_deadline
+        )
+        log("presenting fullscreen window")
+        self.fullscreen()
+        self.present()
+        log("entering main loop")
+        self._loop.run()
+        log("main loop exited")
+        return 0
+
+
+def send(obj):
+    data = (json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8")
+    try:
+        with write_lock:
+            os.write(FD, data)
+    except OSError as exc:
+        log("write fd3 failed: %r" % (exc,))
+        return False
+    if obj.get("event") == "password":
+        log("tx event=password <value redacted>")
+    else:
+        log("tx event=%r" % (obj.get("event"),))
+    return True
+
+
+def main():
+    GLib.set_prgname("bioauth-ui")
+    GLib.set_application_name("bioauth")
+    try:
+        Gtk.init()
+    except Exception as exc:
+        log("Gtk.init failed: %r" % (exc,))
+        print("bioauth-ui: GTK init failed: %s" % (exc,), file=sys.stderr)
+        return 1
+    log("Gtk.init ok")
+
+    provider = Gtk.CssProvider()
+    try:
+        provider.load_from_data(CSS)
+    except Exception as exc:
+        log("CSS load failed: %r" % (exc,))
+    display = Gdk.Display.get_default()
+    if display is None:
+        log("no Gdk display available")
+        print("bioauth-ui: no display available", file=sys.stderr)
+        return 1
+    Gtk.StyleContext.add_provider_for_display(
+        display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+    )
+    window = AuthWindow()
+    return window.run()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException:
+        log("uncaught exception: %s" % (traceback.format_exc(),))
+        raise

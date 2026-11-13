@@ -1,0 +1,14 @@
+#%PAM-1.0
+# bioauth: biometric (fingerprint) first for pkexec and all polkit
+# authentication prompts.  The module runs its own fullscreen secure-screen
+# UI (never the PAM conversation), so gnome-shell's password dialog only
+# appears when we return PAM_IGNORE (user cancel / no UI / daemon down) and
+# the stack falls through to common-auth - that is the password rescue path.
+#
+# prefer=gui: polkit-agent-helper-1 has no usable terminal; force the GTK
+# helper instead of writing prompts to an invisible /dev/tty.
+auth       [success=done default=die ignore=ignore]  pam_bioauth.so prefer=gui
+auth       include      common-auth
+account    include      common-account
+password   include      common-password
+session    include      common-session-noninteractive

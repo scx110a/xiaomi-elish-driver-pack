@@ -52,6 +52,7 @@ It bundles four subsystems on one shared kernel / DTB / boot image:
 | Sensors | Suspend/resume recovery | ✅ | Sleep hook + worker; iio re-claims sensors ~10 s after resume (after M2) |
 | Sensors | Raw gyroscope / magnetometer axes / proximity (SAR) | 🚫 | Not exposed by userspace (libssc/udev layer); not a hardware-driver gap |
 | **Fingerprint** | Goodix GF3626: fprintd enroll/verify, GDM lock/login, sudo | ✅ | TA must be extracted from your own device; TA-refusal watchdog included |
+| **Biometric auth (optional)** | bioauth: generic PAM biometric stack (fingerprint/password, single fullscreen UI, optional sudo/pkexec wiring) | ✅ | **Not installed by default**; `--with-bioauth`, docs in `bioauth/INSTALL.md` |
 | **GNSS** | Airoha AG3335: QUP5 UART + PAIR + gpsd + GeoClue2 | ✅ | real outdoor fix validated (mode=3, 12 sats); GeoClue location + compass heading; Pure Maps validated |
 | **Camera** | Front OV8856 3280×2464 / rear OV13B10 4208×3120 full-res photo/record | ✅ | GPU debayer + Venus HEVC/H.264 at ~30 fps; two V4L2 virtual cameras |
 | Camera | Rear AF/AE/AWB, CN3927V VCM, EEPROM 24c64 | ✅ | Software AF sweep writes the focus sysfs |
@@ -169,6 +170,9 @@ sensors/       sensor subpackage: systemd/udev/D-Bus integration, boot/resume/di
                data extraction scripts, docs
 fingerprint/   fingerprint subpackage: qsee-supplicant/libfprint sources + patches,
                udev/systemd/PAM config, TA extraction, install/verify/uninstall, docs
+bioauth/       OPTIONAL generic biometric PAM stack (PAM module + daemon + GTK4
+               fullscreen helper). Not installed by default; enable with
+               --with-bioauth, and wire into PAM with --bioauth-sudo/--bioauth-pkexec
 gnss/          GNSS subpackage: airoha_gps driver source, airoha-gnssd/gps-nmea-share,
                systemd/gpsd/GeoClue integration, protocol docs, flash-repair extraction
 camera/        camera subpackage: elish-camera GPU pipeline (full-res front/rear,

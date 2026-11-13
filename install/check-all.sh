@@ -36,6 +36,22 @@ else
   echo "  WARN  缺少 camera/elish-camera/verify.sh"
 fi
 
+step "4b. bioauth（可选组件；未安装则跳过）"
+if [ -x /usr/local/libexec/bioauthd ]; then
+  if command -v bioauth-doctor >/dev/null 2>&1; then
+    bioauth-doctor --no-live 2>&1 | tail -3
+    bioauth-doctor --no-live >/dev/null 2>&1 || FAIL=1
+  else
+    echo "  WARN  bioauthd 已装但 bioauth-doctor 不存在"
+  fi
+  for f in /usr/local/libexec/bioauth-ui /lib/"$(cc -print-multiarch 2>/dev/null || echo aarch64-linux-gnu)"/security/pam_bioauth.so; do
+    [ -e "$f" ] && echo "  OK    $f" || { echo "  WARN  缺少 $f"; }
+  done
+  systemctl is-active --quiet bioauthd && echo "  OK    bioauthd active" || echo "  WARN  bioauthd 未运行"
+else
+  echo "  SKIP  未安装 bioauth（可选组件，默认不装）"
+fi
+
 step "5. apt 状态（防止被升级破坏）"
 for p in linux-image-current-sm8250 linux-dtb-current-sm8250 linux-headers-current-sm8250 \
          armbian-firmware-full libfprint-2-2; do

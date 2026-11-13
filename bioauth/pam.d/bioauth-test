@@ -1,0 +1,6 @@
+#%PAM-1.0
+# Test service only. Never use this name for real sudo/login until tested.
+auth     [success=done default=die ignore=ignore]  pam_bioauth.so
+@include common-auth
+@include common-account
+session  required  pam_permit.so
