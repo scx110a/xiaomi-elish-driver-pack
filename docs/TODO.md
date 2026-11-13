@@ -1,6 +1,7 @@
 # 小米平板 5 Pro (SM8250/elish) 系统笔记
 
-更新于 2026-11-13 凌晨（相机/屏幕方向/平板模式/唤醒恢复/自启动收尾/传感器启动加速 L2+M1+M2 已验证）。待办按难度排序。
+更新于 2026-11-13 上午（相机/屏幕方向/平板模式/唤醒恢复/自启动收尾/传感器启动加速 L2+M1+M2 已验证；
+音频栈 PulseAudio/WirePlumber 争用已修复）。待办按难度排序。
 
 > 本文是**整机 Linux 状态摘要**：硬件/驱动覆盖、待办与已知问题。
 > 硬件/驱动的权威基线是 `~/xiaomi-elish-linux-v1-final/docs/HARDWARE-STATUS.md`；
@@ -16,7 +17,7 @@
 |---|---|---|
 | 已驱动 | 显示（CSOT + DPU/DSI）、背光 KTZ8866、触摸/手写笔 NT36523、霍尔/盖子/平板模式 | ✅ |
 | 已驱动 | 电池/充电（双 bq27z561、pm8150b、bq2597x、USB-C TCPM/UCSI） | ✅ |
-| 已驱动 | 音频（Xiaomi Mi Pad 5 Pro 声卡、8×CS35L41 外放、耳机、录音） | ✅ |
+| 已驱动 | 音频（Xiaomi Mi Pad 5 Pro 声卡、8×CS35L41 外放、耳机、录音） | ✅（2026-11-13 修复 PA/WirePlumber 争用，见「已知问题」音频节） |
 | 已驱动 | WiFi/BT（QCA6390 / ath11k + btqca） | ✅ |
 | 已驱动 | pogo 键盘/鼠标（USB HID）、外接蓝牙鼠标 | ✅ |
 | 已驱动 | 传感器：加速度、环境光、旋转矢量方向、指南针 heading（rotv 融合）；原始陀螺/磁力计/接近未暴露 | ⚠️ 部分能力 |
@@ -144,16 +145,30 @@
 
 ## 已知问题
 
-### 音频外放 CS35L41 PUP_DONE -110（2026-11-13 发现，未解决）
+### 音频无输出 / PulseAudio“设备或资源忙”（2026-11-13 已修复）
 
-- 现象：声卡/PCM 正常、PA sink 正常，但 8 颗 CS35L41 在 `GLOBAL_EN` 后
-  `PUP_DONE` 超时（`Enable(1) failed: -110`），外放无声。
-- 已试无效：冷重启、PulseAudio 重启、unbind/rebind 8 颗功放、unbind/rebind ASoC 声卡。
-- DTB 里功放 `VA/VP` 是 dummy regulator；`vreg_l10a_3p0` disabled、l7c/l10c/l11c 未启用，
-  但 regulator sysfs state 只读，无法直接打开。
-- 历史：更早的 boot 也有 32 次 boot 时 -110（PA 有时能绑上声卡），说明不是本次改动引入。
-- 下一步：① Android 外放对照（判断硬件/天线）；② 若 Android 正常，查 Linux DTB 供电/复位/
-  CS35L41 固件（参考 HDA 的 firmware_autostart=0 / legacy 模式）。
+- **症状**：PA 启动后唯一 sink 长期 `SUSPENDED`；`paplay` 能连上流但永不开始播放
+  （延迟一直 2s 不动），外放无声；`journalctl --user-unit pulseaudio` 反复
+  `Error opening PCM device _ucm0001.hw:Pro,0: 设备或资源忙`（EBUSY）。
+- **根因**：相机后端需要 PipeWire，而 PipeWire 的 **WirePlumber 0.4.17 ALSA monitor** 与
+  PulseAudio 16.1 同时管理唯一 ALSA PCM `hw:Pro,0`（WirePlumber 也建了
+  `alsa_output.platform-sound.HiFi__hw_Pro_0__sink` 并抢占 PCM）→ PA 打不开设备，
+  sink 永久 suspended，无音频输出。**不是 PulseAudio 本身故障，也不是功放损坏。**
+- **修复（用户级，无需 root，重启后仍生效）**：
+  `~/.config/wireplumber/main.lua.d/51-disable-alsa.lua` → `alsa_monitor.enabled = false`
+  （只禁用 WirePlumber 的 ALSA 音频监视，保留 v4l2/相机监视；PipeWire 继续服务相机）。
+  生效：`systemctl --user restart wireplumber`。
+- **验证**：`pw-cli ls Node` 无 ALSA 节点、相机节点 2；`pactl` sink `IDLE`、`paplay` rc=0、
+  PCM `RUNNING`；连续 3 轮 PA 重启、WP 重启、冷启动顺序模拟均无 EBUSY；重启后配置持久。
+- **回滚**：删除该 lua 文件 + `systemctl --user restart wireplumber`。
+- **详情/证据/验证命令**：工作区 `audio-fix-20261113.md`。
+- **修正旧结论**：此前“CS35L41 `PUP_DONE` 超时（`Enable(1) failed: -110`）导致外放无声”的判断有误——
+  本次 boot 的 `Enable(1)` -110 只出现在 18–72s 早期启动（声卡/固件未就绪时 PA 探测），
+  72s 后播放时功放上电成功、无 `PUP-done` 超时。**遗留（与无声无关）**：PCM 关闭时仍有
+  `Enable(0) failed: -110` / `POST_PMD Main AMP event failed`（功放下电 hibernate 超时，
+  不影响的播放；可能略增待机功耗）；固件系数 29.53 vs 驱动期望 29.78 告警仍在。
+  后续可查 CS35L41 固件/DTB 供电以消除日志。
+- 用户此前的 `audio-card-retry.service`（无 alsa sink 就重启 PA）保留为兜底，未改动。
 
 
 
@@ -247,6 +262,17 @@
 
 **提权**
 - 免密 sudo + PAM 审批弹窗（zenity 允许/拒绝，30s 超时自动拒绝）
+
+**音频**
+- **2026-11-13 上午：修复 PulseAudio 无法输出音频（PA/WirePlumber 争用）**
+  - 根因：PipeWire（相机后端需要）的 WirePlumber ALSA monitor 与 PulseAudio 同时抢唯一 PCM
+    `hw:Pro,0`，PA 打不开设备（`设备或资源忙`），sink 永久 SUSPENDED → 外放无声。
+  - 修复：用户级 `~/.config/wireplumber/main.lua.d/51-disable-alsa.lua`
+    （`alsa_monitor.enabled = false`，只关 WirePlumber 的 ALSA 音频监视，保留 v4l2 相机监视；
+    PipeWire 继续服务相机）。重启 `wireplumber` 生效，重启后持久。
+  - 验证：`pw-cli ls Node` 无 ALSA 节点、相机节点 2；`paplay` rc=0、PCM RUNNING；
+    3 轮 PA 重启 / WP 重启 / 冷启动顺序模拟无 EBUSY。
+  - 回滚：删除该文件 + `systemctl --user restart wireplumber`。证据/命令见 `audio-fix-20261113.md`。
 
 **硬件支持（合并安装包）**
 - **SMB5 充电 suspend/resume 隐患已修复（2026-11-12）**：合并包

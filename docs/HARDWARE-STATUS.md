@@ -105,7 +105,7 @@
 | 触摸/笔 | NT36523：`NVTCapacitiveTouchScreen`、`NVTCapacitivePen`（基础笔输入已驱动） |
 | 霍尔/按键 | `gpio-keys`：`switch-lid`/`switch-tablet-mode`（SW=3），电源键/resin |
 | 电池/充电 | 双 `bq27z561`、`pm8150b`、`bq2597x` master/slave、USB-C TCPM/UCSI；**2026-11-12：suspend/resume 后 Type-C legacy/100mA 卡死已修复（`kernel/patches/0004`，带充电器 3 轮 suspend/resume 验证；`bq2597x` 快充泵仍可能 present=0，当前约 1.95A 基础充电）** |
-| 音频 | `Xiaomi Mi Pad 5 Pro` 声卡；8×CS35L41 外放、耳机、录音。**2026-11-13 当前状态：外放异常**——CS35L41 `GLOBAL_EN` 后 `PUP_DONE` 超时（`Enable(1) failed: -110`），PA/PCM 正常但外放无声；冷重启、rebind 功放、rebind 声卡均未恢复；待查（Android 对照/供电/固件） |
+| 音频 | `Xiaomi Mi Pad 5 Pro` 声卡；8×CS35L41 外放、耳机、录音。**2026-11-13 已修复无输出**：根因是 PipeWire/WirePlumber ALSA monitor 与 PulseAudio 争用唯一 PCM（`hw:Pro,0`），PA 报“设备或资源忙”、sink 永久 SUSPENDED；用户级 `~/.config/wireplumber/main.lua.d/51-disable-alsa.lua`（`alsa_monitor.enabled=false`）解决，相机 PipeWire 不受影响。遗留 `Enable(0) failed: -110` 为功放下电 hibernate 超时（播放上电正常、无 `PUP-done` 超时，不影响外放）。详见 `docs/TODO.md`「已知问题」音频节 |
 | WiFi/BT | QCA6390（ath11k + btqca/hci_uart）；`wlp1s0`/`hci0` 正常 |
 | 键盘/鼠标 | USB HID：`Xiaomi Pad Keyboard`、`Xiaomi Pad Mouse`、`Xiaomi Pad`，外接蓝牙鼠标 |
 | 传感器 | 加速度/环境光/方向/指南针 heading（见 §2.1） |
