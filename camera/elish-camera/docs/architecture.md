@@ -1,7 +1,7 @@
 # elish-camera 架构与已验证事实（2026-11-12 晚，修订版）
 
 > 本文替代旧交接文档中过时的相机结论；所有数字均来自本机实测。
-> 早期交接文档中的错误点（Bayer/vflip/portal 等）已在本文与 `measurements-integrated.md` 中纠正；不再引用已删除的交接文件。
+> 早期交接文档中的错误点（Bayer/vflip/portal 等）已在本文与 `measurements/measurements-integrated.md` 中纠正。
 
 ## 1. 传感器与 media graph
 
@@ -22,7 +22,15 @@
 - 实际 CFA 顺序：**GRBG**（见 §2.1）
 - 控制：`exposure` 6..3188、`analogue_gain` 128..1984、`digital_gain` 1024..4095
 - 对焦：CN3927V VCM，sysfs `/sys/bus/i2c/devices/20-000c/focus`（0..1023，非标准 V4L2）
-- EEPROM：24c64 @ 0x51（8 KB）；Android 侧 LSC 表已解出（`docs/android-camera-facts.md`）
+- EEPROM：24c64 @ 0x51（8 KB）；Android 侧 LSC 表已解出（详细 Android 取证资料已移出包，归档于工作区）
+
+### Hi556 景深（未通）
+- Android 侧确认：CSIPHY0、CCI1 i2c0、MCLK2 GPIO95、reset GPIO26、2-lane / 437MHz；
+  avdd=PM8008 L3P 2.8V，dovdd/dvdd=PM8150A L1/L2。
+- 上电顺序：3 路供电 → MCLK → **最后**释放 reset（与 OV8856/OV13B10 相反）。
+- mainline 阻塞点：PM8150A L2（`vreg_l2a_3p1` 固定 3.1V）被 USB HS PHY 占用，L1 无节点；
+  不能简单改 L2 电压（会破坏 USB/键盘），需 L2 运行时互斥/迁移后再验证。
+- 更详细的 Android 反编译/EEPROM/试错记录已移出包（历史归档）。
 
 ### 前后摄互斥（实测结论）
 - 两个 sensor **不能同时出流**：后摄先开、前摄后开时，前摄一启动后摄立刻停流；
@@ -64,7 +72,7 @@
 - 关键优化：`glReadPixels` 仅 ~0.8 GB/s → 改为 `/dev/dma_heap/system` 的 dma-buf + EGLImage
   render target（CPU cached mmap ~10 GB/s），Y/UV 同 buffer + `DMA_BUF_IOCTL_SYNC`。
 - 实测（含回读）：前摄 3280×2464 NV12 **11.0–12.1 ms**；后摄 4208×3120 **18.7–19.1 ms**（p95 ≤22 ms）。
-- 详见 `docs/measurements-gpu.md`。
+- 详见 `measurements/measurements-gpu.md`。
 
 ## 4. Venus 硬件编码
 
@@ -74,7 +82,7 @@
   3280×2464 HEVC 135 fps / H.264 136 fps。
 - 实时 30 fps 节拍下 0 丢帧、`push` p95 4.7–8.1 ms；码流可被 ffmpeg 软解。
 - 注意：mainline venus 把 HFI IDR period 硬编码为 0，周期 I 帧不是 IDR；`force_keyframe` 可产生真 IDR。
-- 详见 `docs/measurements-encode.md`。
+- 详见 `measurements/measurements-encode.md`。
 
 ## 5. 对外接口（第三方 App）
 
@@ -92,8 +100,8 @@
   **不需要升级 WirePlumber 0.5、不需要 libspa-0.2-libcamera**（旧交接文档 §6.3 结论有误）。
 - xdg-desktop-portal Camera frontend 存在：`org.freedesktop.portal.Camera`
   （`IsCameraPresent` 属性 + `AccessCamera`/`OpenPipeWireRemote`）；本机 `IsCameraPresent=true`。
-- Flatpak 相机 App 缺的是 App 本身（本机未安装 Cheese/Snapshot）与沙箱首次授权验证，不是后端缺失。
-- 详见 `docs/interface.md`（含 521 行实测矩阵与命令）。
+- Flatpak/portal 相机 App 的路由与授权验证见 `docs/interface.md`；不是后端缺失。
+- 详见 `docs/interface.md`（含实测矩阵与命令）。
 
 ## 6. 代码结构
 
@@ -105,7 +113,7 @@ src/venus_enc.c          Venus V4L2 M2M 编码 + mp4 封装（ffmpeg stream copy
 src/loopback.c           v4l2loopback 生产者（NV12）
 src/main.c               CLI：list/photo/record/stream/serve + AE/AWB + PNG + 线程化 loopback
 tools/*                 各模块测试工具
-docs/                   本文、测量、接口、Android 取证
+docs/                   本文、measurements/、interface.md、evidence/（反编译解析脚本与证据）
 testdata/               少量 raw 测试帧（磁盘有限，勿堆大文件）
 ```
 
@@ -116,6 +124,8 @@ testdata/               少量 raw 测试帧（磁盘有限，勿堆大文件）
 | front-3280x2464-sgrbg10.raw | 3280×2464 | 4112 | 前摄全分辨率（实际 BGGR） |
 | front-1640x1232-sgrbg10.raw | 1640×1232 | 2064 | 前摄 binning |
 | rear-4208x3120-sgrbg10.raw | 4208×3120 | 5264 | 后摄全分辨率（GRBG） |
+
+> `testdata/` 不随包（磁盘有限）；需要时按 `docs/DEVICE-DATA-EXTRACTION.md` 从自己设备采集 raw。
 
 MIPI RAW10 解码：4 像素/5 字节，`p0=(b0<<2)|(b4&3)`、`p1=(b1<<2)|((b4>>2)&3)`、
 `p2=(b2<<2)|((b4>>4)&3)`、`p3=(b3<<2)|((b4>>6)&3)`，10-bit 值 0..1023。

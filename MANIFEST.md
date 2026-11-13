@@ -9,7 +9,7 @@
 README.md / README.en.md / QUICKSTART.md / INSTALL.md / NOTES.md / PATCHES.md / VERSIONS.md / MANIFEST.md / LICENSE / SHA256SUMS
 install.sh     一键安装入口（= install/turnkey.sh 的包装）
 kernel/        统一内核（详见下）
-sensors/       传感器子包（自包含，53 文件）
+sensors/       传感器子包（自包含，52 文件）
 fingerprint/   指纹子包（自包含）
 gnss/          GNSS 子包：airoha_gps 驱动源码、airoha-gnssd 用户态、systemd/gpsd 集成、
                协议与逆向结论（gnss/docs/PROTOCOL.md）、flash 修复说明（extract/）
@@ -51,8 +51,8 @@ camera/        相机子包：elish-camera/（前后摄全分辨率 3280×2464/4
 ## sensors/
 
 原传感器安装包的用户态部分：`README/INSTALL/NOTES/PATCHES/VERSIONS/MANIFEST`、`userspace/`（hexrpc/iio/libssc）、
-`systemd/`、`scripts/`、`install/`、`extract/`、`docs/`（TROUBLESHOOTING、IIO-FIX、HANDOFF-SENSORS、
-UPGRADE-IMPACT）。内核资产统一在顶层 `kernel/`（不再在 sensors/ 内重复）。
+`systemd/`、`scripts/`、`install/`、`extract/`、`docs/`（TROUBLESHOOTING、IIO-FIX、UPGRADE-IMPACT）。
+内核资产统一在顶层 `kernel/`（不再在 sensors/ 内重复）。
 
 ## gnss/
 
@@ -79,7 +79,6 @@ Airoha AG3335 GNSS 子包（2026-11-12 打通）：
 | `system/` | pam.d、systemd、udev、bin、user-bin 配置/脚本 |
 | `extract/` | `extract-gfenu-ta.sh` + TA 来源与 sha256 |
 | `install/` | 安装/自检/卸载脚本 |
-| `docs/` | HANDOFF-FINGERPRINT（历史交接）、DT-COMPARE（历史分析）、REPORT、PORTING-PLAN、ANDROID-ANSWER |
 
 ## 明确不包含 / 需现场获取
 
@@ -90,10 +89,10 @@ Airoha AG3335 GNSS 子包（2026-11-12 打通）：
 | 指纹 TA `gfenu.*`（4.8MB） | 厂商签名固件 | `fingerprint/extract/extract-gfenu-ta.sh`（自己设备） |
 | GNSS 厂商镜像（`ag3335_bootloader.bin` 等 5 个） | 已在设备 GNSS flash 内且能正常启动；**正常使用不需要** | 仅 flash 损坏时：`gnss/extract/README.md`（Android vendor 镜像提取） |
 | `fastrpc.ko`、`goodix_fp_spi.ko` | 与内核 ABI 绑定 | 按 `kernel/README.md` 编译 |
-| 后摄 EEPROM 校准 dump（24c64，8KB） | 单机工厂校准数据（本机私有） | 从自己设备 at24 sysfs 读取：`camera/README.md` §EEPROM + `docs/DEVICE-DATA-EXTRACTION.md` §4 |
+| 后摄 EEPROM 校准 dump（24c64，8KB） | 单机工厂校准数据（本机私有） | 从自己设备 at24 sysfs 读取：`docs/DEVICE-DATA-EXTRACTION.md` §4 |
 | hexagonrpcd/libssc/iio/libfprint/qsee 二进制 | 编译产物（本包不附带任何预编译） | 按各子包 README 编译 |
 | 日志、指纹模板、PAM/sudoers 备份、Android 抓包/工具 | 运行记录/私有/非安装必需 | 不随包 |
 
 ## 统计
 
-**280 个文件；体积约 3.1MB**（不含 SHA256SUMS）。**无 ELF/固件/日志/TA/指纹模板/单机校准 dump**；唯一二进制是模型级联合 DTB；`SHA256SUMS` 已按最终树生成。
+**273 个文件；体积约 3.0MB**（不含 SHA256SUMS）。**无 ELF/固件/日志/TA/指纹模板/单机校准 dump**；唯一二进制是模型级联合 DTB；`SHA256SUMS` 已按最终树生成。

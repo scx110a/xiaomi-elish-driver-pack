@@ -112,39 +112,15 @@ iio-sensor-proxy(Compass) → GeoClue2 compass source（可选）
   # 应用侧：Geoclue.Simple.new_sync(...) / GNOME Maps
   ```
 
-## 地图应用怎么选（2026-11-12 调研）
+## 地图应用怎么选
 
-| 应用 | 来源 | 位置 | 朝向/罗盘 | 说明 |
-|---|---|---|---|---|
-| **GNOME Maps** | Ubuntu（已安装） | ✅ GeoClue（本包已接） | ❌（上游 #993 仍 open） | 最省事；只显示位置/地图 |
-| **Pure Maps** | Flathub（`io.github.rinigus.PureMaps`，104MB） | ✅ GeoClue | ✅ QtSensors `QCompass` + 磁偏角校正，也读 GeoClue heading | 唯一原生支持罗盘的地图应用；GeoClue heading 已可用；若要用 QtSensors 路径需 Flatpak 加 `--system-talk-name=net.hadess.SensorProxy` |
-| **Navit** | Ubuntu | ✅ gpsd | ⚠️ 用 GPS 行进方向（OSD compass/地图跟随），非磁力计 | 导航/跟随方向够用 |
-| **FoxtrotGPS** | Ubuntu | ✅ gpsd | ⚠️ Bearing 来自 GPS | 轻量 |
-| **Marble** | Ubuntu | ✅ gpsd | ❌（CompassFloatItem 只是地图罗盘） | 3D 地球 |
-| **Viking** | Ubuntu | ✅ GeoClue + gpsd | ❌ | 老式地图 |
-| **QMapShack / QGIS** | Ubuntu | ✅ gpsd | ❌ | 专业户外 |
+- **GNOME Maps**（Ubuntu 已装）：只显示位置（GeoClue，本包已接），不支持磁力计朝向；
+- **Pure Maps**（Flathub `io.github.rinigus.PureMaps`，3.5.1 已验证）：位置 + QtSensors 罗盘
+  （跟随/导航且速度 <10 km/h 时激活）；Flatpak 需
+  `sudo flatpak override --system-talk-name=net.hadess.SensorProxy io.github.rinigus.PureMaps`；
+- **Navit / FoxtrotGPS**：走 gpsd，方向来自 GPS 行进方向，适合导航。
 
-结论：只要求位置 → **GNOME Maps**；导航时按行进方向转地图 → **Navit**；
-想真正用磁力计朝向 → **Pure Maps**，但需要先修 iio claim（见上）并给 Flatpak 加传感器 D-Bus 权限。
-
-### 实机安装验证（Pure Maps，2026-11-12）
-
-已通过 Flathub 安装 `io.github.rinigus.PureMaps 3.5.1` 并验证：
-
-- 地图瓦片正常渲染；
-- 合成定位（31.2167N, 121.4667E）下点击应用内“定位”按钮，地图跳到该位置并显示蓝色位置标记
-  → **GeoClue → Pure Maps 位置链路 OK**（真实定位需室外有 fix）；
-- KDE 运行时自带 QtSensors 的 iio 插件
-  （`/usr/lib/plugins/sensors/libqtsensors_iio-sensor-proxy.so` + `/usr/lib/qml/QtSensors`），
-  Flatpak 已加 `--system-talk-name=net.hadess.SensorProxy`；
-- Pure Maps 的罗盘逻辑只在 **follow/导航模式且速度 <10 km/h** 时激活（普通浏览模式按“定位”只是居中），
-  因此建议点“跟随/导航”后再看地图朝向；`auto_rotate`/`auto_center` 可在设置中开启（本机已写入配置）。
-- 安装/权限命令：
-  ```bash
-  sudo flatpak install flathub io.github.rinigus.PureMaps
-  sudo flatpak override --system-talk-name=net.hadess.SensorProxy io.github.rinigus.PureMaps
-  ```
-- 截图（合成定位验证）为开发工作区记录，未随包。
+安装 Pure Maps：`sudo flatpak install flathub io.github.rinigus.PureMaps`。
 
 ## 已验证结果（2026-11-12）
 

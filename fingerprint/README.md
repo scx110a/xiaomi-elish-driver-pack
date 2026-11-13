@@ -81,4 +81,4 @@ fprintd-verify "$USER"                                # 按压 → verify-match
 sudo true                                             # 弹窗 → 按指纹（或 8s 后回退密码）
 ```
 
-故障排查见 `INSTALL.md` 与 `NOTES.md`；历史背景见 `docs/HANDOFF-FINGERPRINT.md`。
+故障排查见 `INSTALL.md` 与 `NOTES.md`；历史调研/交接文档已移出包（工作区历史归档）。

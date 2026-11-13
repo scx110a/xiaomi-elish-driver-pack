@@ -19,7 +19,7 @@
 #
 # Note: the Venus firmware writes H.264 level_idc 5.1 even for 4208x3120
 # (which is above level 5.1 MaxFS); decoders accept it.  See
-# docs/measurements-encode.md for details and workarounds.
+# docs/measurements/measurements-encode.md for details and workarounds.
 
 set -eu
 

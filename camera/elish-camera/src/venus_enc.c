@@ -8,7 +8,7 @@
  * via the host ffmpeg.
  *
  * Driver facts that shaped this code (see docs/architecture.md §4 and
- * docs/measurements-encode.md):
+ * docs/measurements/measurements-encode.md):
  *
  *  - venc_try_fmt_common() aligns luma width to 128 and height to 32, so a
  *    request for 4208x3120 comes back as 4224x3136 (stride 4224) and

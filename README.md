@@ -163,7 +163,7 @@ gnss/          GNSS 子包：airoha_gps 驱动源码、airoha-gnssd/gps-nmea-sha
                systemd/gpsd/GeoClue 集成、协议与排障文档、flash 修复提取说明
 camera/        相机子包：elish-camera GPU 管线（前后摄全分辨率、GPU debayer、Venus 硬编、
                虚拟相机、autoserve、自动对焦）、辅助脚本、udev/自启/休眠恢复、
-               install.sh + verify.sh、docs/（架构/测量/逆向资料）
+               install.sh + verify.sh、docs/（架构/接口/measurements 历史测量）
 install/       安装器：一键安装 turnkey.sh、数据提取 extract-all.sh、用户态构建
                build-userspace.sh、备份启动槽 backup-boot.sh、合并自检 check-all.sh、文件落位表
 docs/          硬件状态基线、整机 TODO、历史记录、升级影响、备份/救援、设备数据提取指南

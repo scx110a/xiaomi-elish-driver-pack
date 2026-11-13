@@ -44,19 +44,8 @@ Linux 侧是精简 SMB5 + 独立 TCPM，原驱动没有这个 legacy 复位，�
 
 ## 部署
 
-本机已重编内核并写 boot_b：
-
-- 新 boot_b sha256：`dc3ee5bbc75ff29deaa0b99c108556162f6f0861e5f175fd887b672f37eab0bc`
-- 备份：`/root/charging-hazard-fix-20261112-142434/`（旧 vmlinuz/initrd/boot_b/源码）
-- 回滚 boot_b：
-  ```bash
-  sudo dd if=/root/charging-hazard-fix-20261112-142434/boot_b.orig.img \
-          of=/dev/disk/by-partlabel/boot_b bs=1M status=progress && sync
-  ```
-- 回滚 vmlinuz：
-  ```bash
-  sudo cp -a /root/charging-hazard-fix-20261112-142434/vmlinuz.orig /boot/vmlinuz-$(uname -r)
-  ```
+按统一流程构建内核并写入 Linux 启动槽（`kernel/build-and-install.sh --write-boot` 或
+`kernel/update-boot-image.sh`）。本机部署/回滚记录已移出包（工作区历史归档）。
 
 ## 限制
 

@@ -35,7 +35,7 @@
 | 硬件 | 前摄 **OV8856 8MP**（2-lane，固定焦点）+ 后摄 **OV13B10 13MP**（4-lane，CN3927V VCM）+ 景深 **Hi556 5MP**（未通） |
 | Linux 现状 | **前后摄全分辨率彩色拍照/录像已可用**：前 3280×2464、后 4208×3120；GPU debayer（FD650 EGL/GLES）+ Venus 硬件 HEVC/H.264，实测约 30fps；虚拟相机 `/dev/video2`（前）/`/dev/video20`（后），WirePlumber/PipeWire + portal 已验证；后摄软件自动对焦可用 |
 | 关键事实 | Bayer：**前摄 BGGR、后摄 GRBG**；前摄必须 `vertical_flip=0`（vflip=1 时 3280×2464 无帧）；Venus encoder/decoder 的 video 节点号不跨启动稳定，需按 sysfs 名发现 |
-| 实现/文档 | `camera/elish-camera/`（源码 + install.sh + verify.sh），文档见 `camera/elish-camera/docs/`：architecture、measurements-integrated、measurements-gpu、measurements-encode、interface、android-camera-facts |
+| 实现/文档 | `camera/elish-camera/`（源码 + install.sh + verify.sh），文档见 `camera/elish-camera/docs/`：architecture、interface、measurements/（历史测量） |
 | 未完成 | Hi556 景深（新证据：上电顺序 **3 路供电 → MCLK → 最后释放 reset**，与 OV 相反；仍需 PM8150A L1/L2 供电方案）；前后摄不能同时出流（camss/DTB 限制，需内核工作） |
 | 备注 | 相机闪光灯 `/sys/class/leds/white:flash` 已驱动；VCM sysfs 需 video 组可写（`camera/99-elish-vcm.rules`） |
 
@@ -169,12 +169,6 @@ gdbus call --system --dest net.hadess.SensorProxy --object-path /net/hadess/Sens
 
 ## 6. 来源与更新约定
 
-- 本文件基于：DSH 会话 `session-a3df1b4d`（Android/Linux DT 对比、驱动路线图）、
-  `session-ed641a57`（整机体检、音频/中断/suspend 问题）、`session-9a00d4f6`
-  （传感器稳定性/启动延迟修复 + GNSS 打通）、2026-11-12 的 GNSS 驱动开发会话，
-  以及工作区 `TODO.md`（安装包内副本 `docs/TODO.md`）。
-  `fingerprint/docs/DT-COMPARE-20261110.md` 仍随包保留（历史分析）；`DRIVER-ROADMAP-20261110.md` 已不在包内。结论以本文件为准。
-- 相机开发交接内容已并入 `camera/elish-camera/docs/` 与本文件。
-- **后续任何会话更新硬件状态，请直接改本文件**：更新 §0 速览、对应小节与"更新日期"，并重新生成包内
-  `SHA256SUMS`；不要把结论只留在会话里。
-- 与旧报告/旧结论冲突时以本文件为准（例如音频：早期曾判为 CS35L41 故障，实际是 PulseAudio/WirePlumber 争用；以 §3 音频行与 `docs/TODO.md` 2026-11-13 记录为准）。
+- 本文件基于 2026-11-12/13 的会话实测与核实；历史调研/开发记录已移出包（工作区历史归档）。
+- **后续更新硬件状态直接改本文件**：同步 §0 速览、对应小节与“更新日期”，并重新生成包内 `SHA256SUMS`。
+- 与旧报告/旧结论冲突时以本文件为准（例如音频：早期判为 CS35L41 故障，实际是 PulseAudio/WirePlumber 争用）。

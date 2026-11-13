@@ -74,7 +74,7 @@
 
 - 现状：`hi556 5MP` 已确认供电/上电顺序与 OV 相反（3 路供电 → MCLK → 最后释放 reset），
   仍卡在 PM8150A L1/L2 供电方案；
-- 证据/接线：`camera/elish-camera/docs/android-camera-facts.md`、`HARDWARE-STATUS.md` §1.1；
+- 证据/接线：`HARDWARE-STATUS.md` §1.1（Android 取证资料已移出包，归档于工作区）；
 - 下一步：解决 PM8150A L2（当前 `vreg_l2a_3p1` 被 USB HS PHY 3.3V 占用）的运行时互斥/迁移，
   再验证 CSIPHY/CCI 与 `hi556` 驱动；
 - 验收：`/dev/media*` 出现 Hi556 链路、可抓 raw/彩色帧。

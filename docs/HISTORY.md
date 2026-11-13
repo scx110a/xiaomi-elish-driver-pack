@@ -1,7 +1,8 @@
 # 历史记录（开发/部署/验证流水）
 
 > 本文件是 2026-11-12/13 的开发与部署历史，仅供追溯；当前状态以 [`HARDWARE-STATUS.md`](HARDWARE-STATUS.md)、
-> 根 `README.md` 与各子包 `README/INSTALL` 为准。
+> 根 `README.md` 与各子包 `README/INSTALL` 为准。文中路径为当时路径；部分历史文档/证据已移出包
+> （归档于工作区 `archive/elish-history-20261113/`）。
 
 ## 已完成的系统改动
 
@@ -61,7 +62,7 @@
 
 > **已过时（2026-11-12 晚）**：最终实现未走 libcamera，而是自研原生 PipeWire
 > `media.role=Camera` 节点（带完整 EnumFormat + `api.libcamera.location`），
-> 详见 `HARDWARE-STATUS.md` §2.4 与 `camera/elish-camera/docs/measurements-integrated.md`。
+> 详见 `HARDWARE-STATUS.md` §2.4 与 `camera/elish-camera/docs/measurements/measurements-integrated.md`。
 > 以下内容仅作历史调研记录。
 
 - **定位**：前/后摄驱动和 raw 链路稳定后，再统一解决“标准 App/视频通话”的相机接入；

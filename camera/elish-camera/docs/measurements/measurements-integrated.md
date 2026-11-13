@@ -1,5 +1,7 @@
 # elish-camera 端到端验收记录（2026-11-12 晚）
 
+> 历史测量记录（2026-11-12，本机实测）。当前架构/接口见 `../architecture.md`、`../interface.md`。
+
 环境：Xiaomi Pad 5 Pro（SM8250 / elish），Armbian noble，内核 `6.18.44-current-sm8250 #10`，
 Mesa 25.2.8 / Adreno 650（FD650），扇区 `_b`，桌面为 GNOME Wayland（测量时 Firefox/DSH 仍在运行，
 负载 3–5，因此部分数字比空载偏低；已注明）。

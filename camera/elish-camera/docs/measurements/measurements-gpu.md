@@ -1,5 +1,7 @@
 # GPU debayer 实测（elish / Adreno 650 "FD650"）
 
+> 历史测量记录（2026-11-12，本机实测）。当前架构/接口见 `../architecture.md`、`../interface.md`。
+
 ## 1. 环境与 renderer
 
 - Xiaomi Pad 5 Pro (SM8250), Armbian noble, kernel 6.18.44；Mesa 25.2.8-0ubuntu0.24.04.4。

@@ -2,7 +2,7 @@
 > （`/etc/modprobe.d/elish-vcam.modprobe.conf`）：`/dev/video2` = Elish Front Camera、
 > `/dev/video20` = Elish Rear Camera（旧版只有 /dev/video2）。`elish-camera serve --camera front|rear`
 > 常驻推流；两个设备都由 WirePlumber 自动发布为 `media.role=Camera` 节点。
-> 前后摄不能同时出流（camss 限制），一次用一路。端到端验收见 `docs/measurements-integrated.md`。
+> 前后摄不能同时出流（camss 限制），一次用一路。端到端验收见 `docs/measurements/measurements-integrated.md`。
 
 # 通用相机接口：v4l2loopback 生产者 + PipeWire / portal（2026-11-12 实测）
 
@@ -511,17 +511,3 @@ gst-launch-1.0 -v pipewiresrc target-object=elish-camera-pw num-buffers=90 \
   ! video/x-raw,format=NV12 ! fakesink
 kill %1
 ```
-
-## 10. 本次对系统做的改动（透明记录）
-
-- 只为可选原型安装了**开发头文件**：`libpipewire-0.3-dev`（连带 `libspa-0.2-dev`），
-  版本 1.0.5-1ubuntu3.3，纯头文件，**未重启/未升级**任何 PipeWire/WirePlumber 服务。
-- 未 rmmod / 未改 v4l2loopback 模块参数、未改 DTB/内核、未 reboot、
-  未安装 `libspa-0.2-libcamera`、未改 WirePlumber 配置。
-- 测试期间仅改动 `/dev/video2` 的当前格式（NV12），格式残留无害（下一个生产者会重设）。
-
-## 11. 证据文件（本机 /tmp，非仓库）
-
-- `/tmp/lb.log`、`/tmp/ff.log`、`/tmp/gst.log`、`/tmp/guv.out`、`/tmp/pw_src.log`、
-  `/tmp/pw_custom.log`、`/tmp/pw4208.log`、`/tmp/portal_cam_test.py`
-  （临时测试产物，未入库；需要可重新按 §9 复现）。

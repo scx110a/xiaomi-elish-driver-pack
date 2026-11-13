@@ -17,7 +17,7 @@ Xiaomi Pad 5 Pro（SM8250 / elish）在 mainline Armbian 上，把前后摄以**
 | PipeWire `media.role=Camera` 节点 / portal Camera | ✅ 节点自动出现、portal `IsCameraPresent=true` |
 | 前后摄同时出流 | ❌ 硬件/camss 限制，一次一路 |
 
-详见 `docs/architecture.md`、`docs/measurements-integrated.md`、`docs/interface.md`。
+详见 `docs/architecture.md`、`docs/measurements/measurements-integrated.md`、`docs/interface.md`。
 
 ## 构建
 
@@ -123,8 +123,8 @@ src/venus_enc.c          Venus 硬件 H.264/HEVC 编码 + MP4
 src/loopback.c           v4l2loopback 虚拟相机生产者
 src/main.c               CLI + AE/AWB + PNG + 线程化推流
 tools/                   各模块独立测试（debayer_test/enc_test/loopback_test/capture_test）
-docs/                    架构事实、测量、接口矩阵、Android 取证
-testdata/                少量 raw 测试帧（磁盘紧张，勿放大文件）
+docs/                    架构事实、measurements/（历史测量）、接口矩阵、evidence/（反编译解析）
+testdata/                少量 raw 测试帧（**不随包**；需要时自采，见 docs/DEVICE-DATA-EXTRACTION.md）
 ```
 
 ## Flatpak / portal App（已打通）

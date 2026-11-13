@@ -1,5 +1,7 @@
 # Venus 硬件编码模块实测（venus_enc.c / enc_test）
 
+> 历史测量记录（2026-11-12，本机实测）。当前架构/接口见 `../architecture.md`、`../interface.md`。
+
 > 2026-11-12 晚在 Xiaomi Pad 5 Pro（SM8250 / elish，Armbian noble，kernel 6.18.44-current-sm8250）
 > 实测。所有数字来自本机 `/dev/video16`（qcom-venus，V4L2 stateful M2M multi-planar）。
 > 相关硬件事实见 `docs/architecture.md` §4、§6。

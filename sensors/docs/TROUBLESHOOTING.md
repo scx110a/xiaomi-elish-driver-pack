@@ -74,4 +74,4 @@ sudo cp /var/log/hexrpc-boot.log /tmp/
 sensor-status > /tmp/status.txt
 ```
 
-（附：历史完整调试记录见 `docs/HANDOFF-SENSORS.md`。）
+（附：历史完整调试记录已移出包，归档于工作区。）

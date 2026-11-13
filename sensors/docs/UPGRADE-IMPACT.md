@@ -180,53 +180,8 @@ sudo apt-mark hold linux-image-current-sm8250 linux-dtb-current-sm8250 \
 # 撤销： sudo apt-mark unhold ...
 ```
 
-## 7. 升级频率与自动化（2026-11-11 观察）
+## 7. 升级频率与自动化
 
-### 7.1 关键结论：这些包**不会自动升级**
-
-- 本机 `unattended-upgrades` 的 `Allowed-Origins` 只包含 Ubuntu 的 `noble` / `noble-security`
-  （未包含 Armbian 源），因此 `apt.armbian.com` 提供的内核/固件包**不会**被自动安装升级；
-- `apt-daily.timer` 只每天刷新索引，`apt-daily-upgrade.timer` 只处理允许的 Ubuntu 安全更新；
-- 也就是说：**内核三件套与 `armbian-firmware-full` 的实际升级频率 = 你手动执行
-  `apt upgrade` / `armbian-update` 的频率**。不动它，频率就是 0。
-
-### 7.2 Armbian 稳定仓库的发布节奏（推断 + 本机证据）
-
-| 证据 | 内容 |
-|---|---|
-| 版本号 | 本机内核/固件包版本 `26.8.3`；`/etc/armbian-image-release` 初始镜像 `25.2.2`，`/etc/armbian-release` 为 `26.2.1` |
-| 内核构建时间 | `/boot/config-6.18.44-current-sm8250` 时间戳 **2026-08-15**，即 26.8 周期构建 |
-| 本机安装时间 | `linux-image` 的 dpkg 记录 **2026-09-09**；固件包 **2026-11-06** |
-| 当前仓库状态 | 2026-11-11：`apt-cache policy` 显示这些包 installed = candidate = **26.8.3**，`apt list --upgradable` 无内核/固件可升级项 |
-| 下一版本 | 26.11 处于 trunk 测试（最新 weekly digest 2026-11-09；trunk 构建的内核已到 6.18.60），稳定版通常随后发布 |
-
-Armbian 稳定版节奏约 **每季度一次**（2/5/8/11 月），周期内会有 **point release**（26.8.0→26.8.3
-说明至少 3 次点版本）。因此若你每次 stable 升级都跟进：
-
-- **内核三件套**（image/dtb/headers）：约 **4 次/年**（每季度一次）会需要重编模块 + 重做
-  DTB/boot 镜像；若某个周期内核源码未变，仍会因包版本变化覆盖 fastrpc.ko/DTB；
-- **armbian-firmware-full**：同样约 **4 次/年**，但多数情况启动脚本会自愈（普通文件→悬空链接），
-  最坏情况需要在重启前手动修复；
-- 每个季度内若出现 point release 且包含内核/固件更新，可能再多 1–2 次；
-- **内核 minor 跳变**（6.18→6.19/7.x）更少（约半年~一年一次），但一旦发生，fastrpc 补丁可能
-  需要 re-port，工作量最大。
-
-### 7.3 估算表
-
-| 组件 | apt 自动升级 | 若跟随 stable 升级的频率 | 每次需要做什么 | 保持不动时风险 |
-|---|---|---|---|---|
-| linux-image-current-sm8250 | ❌ 否 | ~4 次/年 | 重编 fastrpc.ko、重做 DTB/boot 镜像、重启验证 | 0（但无安全更新） |
-| linux-dtb-current-sm8250 | ❌ 否 | ~4 次/年（常与内核同时） | 重加 vmids/指纹 DTB 节点 | 0 |
-| linux-headers-current-sm8250 | ❌ 否 | ~4 次/年 | 用于匹配版本重编模块 | 0 |
-| armbian-firmware-full | ❌ 否 | ~4 次/年（+point） | 恢复固件符号链接/移走拆份固件（脚本多数自愈） | 0 |
-| iio/hexrpc/libssc（非 dpkg） | ❌ 不受 apt 影响 | 0（除非手动） | — | 0 |
-| 依赖库（glib/qmi/qrtr 等） | ✅ 但仅 Ubuntu 源 | 安全更新不定期 | SONAME 变化才需重编 | 极低 |
-
-### 7.4 建议
-
-- **不想折腾**：`sudo apt-mark hold linux-image-current-sm8250 linux-dtb-current-sm8250
-  linux-headers-current-sm8250 armbian-firmware-full`，把升级频率降为 0；每季度看一次
-  `apt list --upgradable`，有空再按 §1/§2 流程升级。
-- **想跟进 stable**：按季度批量处理，升级前备份 Linux 启动槽/DTB/数据，升级后跑
-  `install/check-upgrade.sh` + `install/verify.sh`。
-- 可在日历/提醒里设"每季度检查 Armbian 内核/固件更新"，避免错过 26.11/27.2 等版本。
+这些包**不会**被 `unattended-upgrades` 自动升级（Armbian 源不在其 `Allowed-Origins`）；
+实际频率取决于手动 `apt upgrade` / `armbian-update`。是否 hold、哪些包危险、升级前后检查清单，
+统一见根 [`docs/UPGRADE-IMPACT-ALL.md`](../../docs/UPGRADE-IMPACT-ALL.md) §2–§4。

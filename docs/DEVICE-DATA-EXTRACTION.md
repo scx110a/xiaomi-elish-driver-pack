@@ -54,7 +54,7 @@ python3 camera/elish-camera/docs/evidence/eeprom-24c64-parse.py rear-eeprom-24c6
 ```
 
 也可用 `i2c-tools`（`i2cdetect -y <bus>` / `i2cdump -y <bus> 0x51`）。
-解析结论见 `camera/elish-camera/docs/android-camera-facts.md` §4。
+解析结论见 `camera/elish-camera/docs/architecture.md` §1（EEPROM）与 `docs/HARDWARE-STATUS.md` §1.1。
 
 ## 5. 用户态 / 内核二进制（本包不附带预编译，按源码编译）
 

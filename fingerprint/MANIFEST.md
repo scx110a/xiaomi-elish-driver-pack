@@ -14,7 +14,6 @@ system/bin/               fp-sudo-prompt、fp-sudo-prompt-done、fp-ta-watchdog
 system/user-bin/          fp-sudo-prompt-watch
 extract/                  extract-gfenu-ta.sh + README（TA 提取与 sha256 校验）
 install/                  install-fingerprint-files.sh、verify-fingerprint.sh、uninstall-fingerprint.sh
-docs/                     HANDOFF-FINGERPRINT（1–16 节，去用户化）、DT-COMPARE、REPORT、PORTING-PLAN、ANDROID-ANSWER
 ```
 
 ## 不包含（及原因）

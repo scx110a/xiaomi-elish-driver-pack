@@ -122,5 +122,5 @@ claim→polling、无传感器常驻、无条件连接 uevent。
   长期应移除该 hack，改为 libcamera/sensor properties 方案；
 - **Venus 设备号**：encoder/decoder 的 video 节点号不跨启动稳定（曾从 video16/video15 互换），
   elish-camera 按 sysfs 名 `qcom-venus-encoder` 发现，不要在脚本里硬编码；
-- Android 取证结论见 `camera/elish-camera/docs/android-camera-facts.md`（三 sensor RAW10/分辨率/
-  2-4 lane、OV13B10 EEPROM LSC 表、Hi556 上电顺序）。
+- Android 取证结论（三 sensor RAW10/分辨率/2-4 lane、OV13B10 EEPROM LSC 表、Hi556 上电顺序）见
+  `camera/elish-camera/docs/architecture.md` 与 `docs/HARDWARE-STATUS.md` §1.1；详细资料已移出包。
