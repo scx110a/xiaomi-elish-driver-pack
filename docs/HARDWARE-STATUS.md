@@ -105,7 +105,7 @@
 | 触摸/笔 | NT36523：`NVTCapacitiveTouchScreen`、`NVTCapacitivePen`（基础笔输入已驱动） |
 | 霍尔/按键 | `gpio-keys`：`switch-lid`/`switch-tablet-mode`（SW=3），电源键/resin |
 | 电池/充电 | 双 `bq27z561`、`pm8150b`、`bq2597x` master/slave、USB-C TCPM/UCSI；**2026-11-12：suspend/resume 后 Type-C legacy/100mA 卡死已修复（`kernel/patches/0004`，带充电器 3 轮 suspend/resume 验证；`bq2597x` 快充泵仍可能 present=0，当前约 1.95A 基础充电）** |
-| 音频 | `Xiaomi Mi Pad 5 Pro` 声卡；8×CS35L41 外放、耳机、录音（开机前 34s 的 `Enable -110` 是休眠功放初始化重试，播放正常） |
+| 音频 | `Xiaomi Mi Pad 5 Pro` 声卡；8×CS35L41 外放、耳机、录音。**2026-11-13 当前状态：外放异常**——CS35L41 `GLOBAL_EN` 后 `PUP_DONE` 超时（`Enable(1) failed: -110`），PA/PCM 正常但外放无声；冷重启、rebind 功放、rebind 声卡均未恢复；待查（Android 对照/供电/固件） |
 | WiFi/BT | QCA6390（ath11k + btqca/hci_uart）；`wlp1s0`/`hci0` 正常 |
 | 键盘/鼠标 | USB HID：`Xiaomi Pad Keyboard`、`Xiaomi Pad Mouse`、`Xiaomi Pad`，外接蓝牙鼠标 |
 | 传感器 | 加速度/环境光/方向/指南针 heading（见 §2.1） |

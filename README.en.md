@@ -62,7 +62,7 @@ It bundles four subsystems on one shared kernel / DTB / boot image:
 | Kernel | fastrpc SDSP VMID / sensors-PD, QSEECOM/TEE, mdt_loader, qcom_scm, goodix_fp_spi | ✅ | Fingerprint/sensor kernel layer |
 | Kernel | LPASS pinctrl clock-timeout defer (pogo keyboard/USB random failures) | ✅ | Stand-alone patch `kernel/patches/0002-…` |
 | Kernel | SMB5 Type-C legacy/100 mA resume hang | ✅ | Verified with 3 suspend/resume cycles with charger attached |
-| System | Display/touch/pen/hall/battery/audio/Wi-Fi/BT/USB HID/GPU/UFS/PCIe/Venus | ✅ | Platform baseline; see `docs/HARDWARE-STATUS.md` |
+| System | Display/touch/pen/hall/battery/audio/Wi-Fi/BT/USB HID/GPU/UFS/PCIe/Venus | ⚠️ | Platform baseline; **speakers currently silent (CS35L41 PUP timeout, under investigation)**; see `docs/HARDWARE-STATUS.md` |
 | System | Screen orientation / tablet mode / auto-rotate configuration | ⚠️ | `tablet_mode=on/off/auto`, `rebuild_mode`; depends on the cover hall switch |
 | System | Pogo keyboard after suspend/resume | ⚠️ | Known kernel USB PHY resume issue; reboot/re-plug recovers; userspace deliberately does not touch it |
 | System | Charging | ⚠️ | Baseline ~1.95 A; quick-charge pump / 33 W+ not validated (no original charger) |

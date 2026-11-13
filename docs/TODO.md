@@ -144,6 +144,19 @@
 
 ## 已知问题
 
+### 音频外放 CS35L41 PUP_DONE -110（2026-11-13 发现，未解决）
+
+- 现象：声卡/PCM 正常、PA sink 正常，但 8 颗 CS35L41 在 `GLOBAL_EN` 后
+  `PUP_DONE` 超时（`Enable(1) failed: -110`），外放无声。
+- 已试无效：冷重启、PulseAudio 重启、unbind/rebind 8 颗功放、unbind/rebind ASoC 声卡。
+- DTB 里功放 `VA/VP` 是 dummy regulator；`vreg_l10a_3p0` disabled、l7c/l10c/l11c 未启用，
+  但 regulator sysfs state 只读，无法直接打开。
+- 历史：更早的 boot 也有 32 次 boot 时 -110（PA 有时能绑上声卡），说明不是本次改动引入。
+- 下一步：① Android 外放对照（判断硬件/天线）；② 若 Android 正常，查 Linux DTB 供电/复位/
+  CS35L41 固件（参考 HDA 的 firmware_autostart=0 / legacy 模式）。
+
+
+
 ### 睡眠唤醒后键盘失效（用户态无解）
 
 - **现象**：s2idle 唤醒后键盘无响应，只能物理拔插
