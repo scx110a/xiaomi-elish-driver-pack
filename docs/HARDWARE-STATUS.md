@@ -18,8 +18,7 @@
 | 部分驱动 | 原始陀螺、原始磁力计三轴、接近/SAR | ⚠️ 用户态未暴露 |
 | 传感器启动/可靠性 | L2+M1+M2（2026-11-13）：开机约 **22 秒**可用（改造前 79s）；干净启动约 **13/14** 成功（偶发 PD 静默卡死，重启恢复） | ✅ 已大幅改善 |
 | 已驱动（可配置） | 屏幕方向/平板模式：相机方向跟随 Mutter transform；`tablet_mode=on/off/auto`；`rebuild_mode=idle/live/off`；`elish-camera-ctl orientation` 配置工具 | ✅ |
-| 已驱动 | 休眠唤醒传感器恢复：sleep hook + `elish-sensors-resume` 服务（等加速计就绪后再重启 iio 让 mutter re-claim）；**连续睡眠加固**：pre 取消 worker + flock + sleep delay inhibitor（2026-11-13） | ✅ M2 后实测唤醒 **~10s、自动旋转可用**；连续睡眠不再叠加旧 worker（此前快速连续合盖可让下一次唤醒拖到 25s+） |
-| 已知缺陷 | 连续/快速睡眠后**第二次唤醒屏幕点亮慢**（按电源后黑屏数秒）；日志显示第二次快速唤醒的 DRM unblank 比 PM exit 晚 ~2.5s（正常 0.1s），伴随 gnome-shell JS error，属 GNOME/mutter/DRM resume 路径，非传感器 worker | ⚠️ 传感器加固仅消除“恢复中再睡”的触发；屏幕点亮需单独定位（mutter/DPU/DSI resume） |
+| 已驱动 | 休眠唤醒传感器恢复：sleep hook + `elish-sensors-resume` 服务（等加速计就绪后再重启 iio 让 mutter re-claim） | ✅ M2 后实测唤醒 **~10s、自动旋转可用**（2026-11-13；此前 ~35–40s） |
 | 已驱动 | 相机后端登录自启：`elish-camera-autostart` + `/etc/xdg/autostart/elish-camera-autoserve.desktop` | ✅ |
 | 功能缺陷 | 睡眠唤醒后 pogo 键盘可能失效/反复重枚举（host USB PHY resume 问题；重启/重插恢复） | ⚠️ 内核问题，用户态不改（历史危险复位已禁用） |
 | 已驱动 | 传感器（加速度/环境光/旋转矢量方向/指南针）、指纹、触摸/笔/霍尔、显示/背光、电池/充电、音频、WiFi/BT、键盘/鼠标、Venus 编解码、GPU/UFS/PCIe、相机闪光灯 | ✅ |

@@ -74,20 +74,6 @@ elish-camera-ctl rotate front|rear <0|90|180|270|auto>
 - 登录自启：`/etc/xdg/autostart/elish-camera-autoserve.desktop` → `elish-camera-autostart`；
 - 休眠唤醒：`camera/system/elish-sensors-resume*`——等加速计就绪后重启 iio，让 mutter 重新 claim，
   实测唤醒 ~10s 恢复自动旋转（日志：`journalctl -t elish-sensors-resume -b`）。
-- **连续睡眠加固（2026-11-13）**：每次 resume 的 SLPI `sensor_process` 都会 crash
-  (`frpc_dsp`) 并重建传感器栈（fastrpc `SDSP assign -22`），所以恢复需要 ~7–10s。若恢复
-  未完成就再次 suspend，旧 worker 会跨过一次睡眠，下一次唤醒可能更慢/加速计迟迟不回。
-  现在的处理：
-  - sleep hook `pre` 先 `systemctl stop elish-sensors-resume` + kill worker；
-  - worker 用 `flock` 单实例，计时改用 `/proc/uptime`（避免 suspend/NTP 跳时虚报）；
-  - worker 通过 `systemd-inhibit --mode=delay` 持有 sleep delay inhibitor，恢复期间的
-    第二次合盖会等本轮恢复结束（系统 `InhibitDelayMaxSec=30s`）再 suspend；
-  - `60-sensors-suspend.sh` 的 post 由 `restart iio` 改为 `start`（pre 已 stop），避免
-    每次唤醒重启两次 iio。
-  - 注意：**屏幕点亮延迟**是独立的 GNOME/mutter/DRM resume 路径问题（日志里第二次快速
-    唤醒的 `nvt_drm_notifier ... blank=0` 比 `PM: suspend exit` 晚 ~2.5s，正常唤醒仅
-    ~0.1s；同窗口有 gnome-shell JS error），上述传感器加固只能避免“恢复中再睡”的触发，
-    不能保证直接消除黑屏时间；需要单独抓 mutter/DRM 日志定位。
 
 若手工部署（未跑 `camera/install.sh`）：
 

@@ -15,9 +15,7 @@ case "$1" in
     if ! pgrep -f '/usr/local/sbin/hexrpc-sdsp-service.sh' >/dev/null 2>&1; then
       setsid /usr/local/sbin/hexrpc-sdsp-service.sh >> /var/log/hexrpc-boot.log 2>&1 &
     fi
-    # pre 已经 stop 掉 iio；这里用 start，避免与 elish-sensors-resume worker
-    # 随后的“等加速计就绪再 restart”叠成每次都重启两次。
-    systemctl start iio-sensor-proxy.service 2>/dev/null
+    systemctl restart iio-sensor-proxy.service 2>/dev/null
     ;;
 esac
 exit 0

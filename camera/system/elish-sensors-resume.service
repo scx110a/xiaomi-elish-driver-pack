@@ -4,13 +4,4 @@ After=iio-sensor-proxy.service
 
 [Service]
 Type=oneshot
-# Hold a *delay* sleep inhibitor while the sensor stack recovers: a second
-# lid-close/power press in that window then waits (up to logind's
-# InhibitDelayMaxSec, 30s on this system) instead of suspending in the middle
-# of the recovery, and the pre-suspend hook cancels a still-running worker.
-ExecStart=/usr/bin/systemd-inhibit --what=sleep --mode=delay \
-    --who=elish-sensors-resume --why="restoring sensors after resume" \
-    /usr/local/sbin/elish-sensors-resume-worker
-# The pre-suspend hook stops this unit; do not let a stuck gdbus/sleep delay
-# the suspend forever.
-TimeoutStopSec=5
+ExecStart=/usr/local/sbin/elish-sensors-resume-worker

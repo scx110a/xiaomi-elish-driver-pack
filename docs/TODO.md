@@ -95,20 +95,6 @@
 - 下一步：只做内核 `qcom_snps_hsphy` resume 路径/上游修复的设计与验证；
 - 验收：suspend/resume 后键盘无重连、按键正常。
 
-### 5b. 连续睡眠唤醒（已缓解 2026-11-13；屏幕点亮待查）
-
-- 已实施（用户态，已装并入库）：
-  - sleep hook pre 取消 `elish-sensors-resume.service`/worker；post 重新启动；
-  - worker `flock` 单实例 + `/proc/uptime` 计时；
-  - worker 持 `systemd-inhibit --mode=delay`；本机 `InhibitDelayMaxSec=30s`，
-    恢复期间第二次合盖会等本轮恢复结束再 suspend；
-  - `60-sensors-suspend.sh` post `restart iio` → `start`。
-- 仍需查：**第二次快速睡眠后按电源键黑屏数秒**。证据：boot -5 第二次唤醒
-  `nvt_drm_notifier blank=0` 比 `PM: suspend exit` 晚 2.56s（正常唤醒 ~0.1s），
-  同窗口有 gnome-shell JS error；疑似 GNOME/mutter/DRM(DPU/DSI) resume 路径，
-  与 SLPI 传感器恢复无关。下一步：抓 muttered/DRM resume 日志、对比正常/快速唤醒；
-  必要时给 root 提 kernel/DRM 日志或 upstream 报 issue。
-
 ### 6. 唤醒后自动旋转恢复加速（中，已部分实施；等待合盖实测）
 
 - 现状（2026-11-12 分析确认）：唤醒后 ~35–40s 恢复，主体是 SLPI `sensor_process` PD 在
