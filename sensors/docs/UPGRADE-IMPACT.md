@@ -49,8 +49,7 @@
 
 **能否修补**：能，但属于"每次内核升级都必须手动重做"：
 
-1. 备份（升级前）：`LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt); sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M`；
-   备份 `/boot/armbian-kernel-csot.img`、`/usr/lib/linux-image-*/qcom/*csot.dtb`。
+1. 备份（升级前）：`sudo ../../install/backup-boot.sh`（自动检测槽位，备份槽镜像 + boot 镜像 + DTB）。
 2. 准备**新内核版本**源码树（`apt-get source` 或 Armbian 源码 + 对应配置），
    重打 `../../kernel/patches/0001-fastrpc-sdsp-vmid-and-sensors-pd.patch`（新版本可能需 re-port；
    若官方 SMMU 修复已合入，可只保留 VMID 候选补丁），`make drivers/misc/fastrpc.ko`，
@@ -149,10 +148,8 @@ sudo mv -f /lib/firmware/qcom/sm8250/xiaomi/elish/slpi.b* /lib/firmware/qcom/sm8
 
 **升级前**
 ```bash
-# 1) 备份 Linux 启动槽与 boot 镜像
-LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
-sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
-sudo cp -a /boot/armbian-kernel-csot.img /root/
+# 1) 备份 Linux 启动槽 / boot 镜像 / DTB
+sudo ../../install/backup-boot.sh
 # 2) 备份数据母本与配置
 sudo tar -czf /root/sensor-data-backup-$(date +%Y%m%d).tar.gz /usr/share/qcom-ssc-elish /etc/sensor-tuning.conf
 # 3) 记录基线

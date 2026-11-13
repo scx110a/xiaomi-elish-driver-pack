@@ -14,10 +14,8 @@ uname -r                                    # 6.18.44-current-sm8250
 cat /sys/firmware/devicetree/base/model     # Xiaomi Mi Pad 5 Pro (CSOT)
 LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
 ls -l /dev/disk/by-partlabel/$LABEL         # Linux 启动分区（本机 boot_b；按 armbianEnv 自动）
-# 备份 Linux 启动槽 / boot 镜像 / DTB
-sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
-sudo cp -a /boot/armbian-kernel-csot.img /root/
-sudo cp -a /usr/lib/linux-image-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb /root/
+# 备份 Linux 启动槽 / boot 镜像 / DTB（槽位自动检测）
+sudo ../install/backup-boot.sh
 ```
 
 要求：kernel 已按 `../kernel/README.md` 构建并重启，以下设备存在：

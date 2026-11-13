@@ -2,7 +2,7 @@
 
 - **设备**：Xiaomi Mi Pad 5 Pro（SM8250 / elish，**WiFi 版**，CSOT 面板）
 - **基线**：Armbian noble，kernel `6.18.44-current-sm8250`，已部署本安装包的传感器 + 指纹 + LPASS pinctrl 修复
-- **更新日期**：2026-11-13 凌晨（**传感器启动加速 L2+M1+M2：开机 ~22s**；此前：GNSS、相机 portal/Snapshot、屏幕方向/平板模式、休眠唤醒恢复、相机自启）
+- **更新日期**：2026-11-13 上午（**音频 PA/WirePlumber 争用已修复**；此前：传感器启动加速 L2+M1+M2、GNSS、相机 portal/Snapshot、屏幕方向/平板模式、休眠唤醒恢复、相机自启）
 - **用途**：后续会话/安装/排查**以本文件为准**；它与旧调研报告（见 §6）冲突时，以本文件为准。
 - **判定标准**：✅ 已驱动且当前可用；⚠️ 部分驱动/有已知功能缺陷；❌ 有硬件但 Linux 未驱动；— 本机不存在。
 
@@ -12,7 +12,7 @@
 
 | 类别 | 硬件 | 状态 |
 |---|---|---|
-| **部分驱动** | 前摄 OV8856 8MP（raw/彩色 vcam/扫码）；后摄 OV13B10 13MP（raw/彩色 + CN3927V AF + AE/AWB + EEPROM 24c64 + 4208 全彩）；景深 Hi556 未通 | ⚠️ 后摄 AF/AE/AWB/EEPROM/4208 全彩打通；Hi556 卡在 PM8150A L2 |
+| **部分驱动** | 前摄 OV8856 8MP（raw/彩色 vcam/扫码）；后摄 OV13B10 13MP（raw/彩色 + CN3927V AF + AE/AWB + EEPROM 24c64 + 4208 全彩）；景深 Hi556 未通 | ⚠️ 后摄 AF/AE/AWB/EEPROM/4208 全彩打通；Hi556 卡在 PM8150A L1/L2 供电 |
 | 已驱动 | **GNSS（Airoha AG3335，QUP5 UART + PAIR 协议）** | ✅ 2026-11-12 打通（见 §3、`gnss/README.md`） |
 | 已驱动 | 指南针 heading（旋转矢量 rotv 融合 → `CompassHeading`） | ✅（原始磁力计三轴仍未暴露） |
 | 部分驱动 | 原始陀螺、原始磁力计三轴、接近/SAR | ⚠️ 用户态未暴露 |
@@ -172,10 +172,9 @@ gdbus call --system --dest net.hadess.SensorProxy --object-path /net/hadess/Sens
 - 本文件基于：DSH 会话 `session-a3df1b4d`（Android/Linux DT 对比、驱动路线图）、
   `session-ed641a57`（整机体检、音频/中断/suspend 问题）、`session-9a00d4f6`
   （传感器稳定性/启动延迟修复 + GNSS 打通）、2026-11-12 的 GNSS 驱动开发会话，
-  以及 `~/Documents/deepseek-harness/default-workspace/TODO.md`（安装包内副本 `docs/TODO.md`）。
-  早期报告 `DT-COMPARE-20261110.md` / `DRIVER-ROADMAP-20261110.md` 原在已删除的指纹归档中，结论已在本文件重新核对收录。
-- 相机开发交接文档 `CAMERA-HANDOVER-20261112.md` 已删除，内容已并入
-  `camera/elish-camera/docs/` 与本文件。
+  以及工作区 `TODO.md`（安装包内副本 `docs/TODO.md`）。
+  `fingerprint/docs/DT-COMPARE-20261110.md` 仍随包保留（历史分析）；`DRIVER-ROADMAP-20261110.md` 已不在包内。结论以本文件为准。
+- 相机开发交接内容已并入 `camera/elish-camera/docs/` 与本文件。
 - **后续任何会话更新硬件状态，请直接改本文件**：更新 §0 速览、对应小节与"更新日期"，并重新生成包内
   `SHA256SUMS`；不要把结论只留在会话里。
-- 与旧报告冲突时以本文件为准（例如：早期报告写"音频已驱动"但当时未解释启动期 `-110`；本文件已注明是初始化重试、外放正常）。
+- 与旧报告/旧结论冲突时以本文件为准（例如音频：早期曾判为 CS35L41 故障，实际是 PulseAudio/WirePlumber 争用；以 §3 音频行与 `docs/TODO.md` 2026-11-13 记录为准）。

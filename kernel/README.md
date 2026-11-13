@@ -158,7 +158,7 @@ sudo depmod -a
   pinctrl（IRQ gpio23）。
 
 **本包附带一份已验证的联合 DTB**：`kernel/dtb/sm8250-xiaomi-elish-csot.dtb`
-（sha256 `d3c2f8b5eddb5eca91ad2648ade11a542c16fd34a9dd471549b28bc43d39e153`）：
+（sha256 `14909d42d6a1935f6dd49ff8b4700e0adf4164024c6f0c25f6ba94b6ad3ee4a8`）：
 
 ```bash
 sudo cp kernel/dtb/sm8250-xiaomi-elish-csot.dtb \

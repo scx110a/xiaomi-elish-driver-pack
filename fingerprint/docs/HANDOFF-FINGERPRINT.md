@@ -7,12 +7,12 @@
 
 > **boot_a 是 Android 的启动分区（/dev/sde12），绝对不允许写入。**
 > 只允许只读读取；任何需要改启动/DTB 的操作一律改 rootfs 上的文件。
-> 详见同目录 `SAFETY-RULES.md`。
+> 红线以本文件与 `../NOTES.md` 为准。
 
 # 指纹移植项目完整交接文档
 
 > 日期：2026-11-10 08:10
-> 状态：**录入流程完全打通**，验证待解决
+> 状态（历史，2026-11-10）：录入流程打通；后续验证/GDM/sudo 均已解决，当前状态见 `README.md`/`INSTALL.md`。
 > 设备：Xiaomi Mi Pad 5 Pro (SM8250 / elish)，Armbian 6.18.44
 
 ---

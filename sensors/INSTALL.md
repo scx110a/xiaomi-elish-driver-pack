@@ -12,11 +12,9 @@
 1. **不要写 Android 启动槽**；只允许操作 rootfs 与 **Linux 启动槽**。槽位以
    `/boot/armbianEnv.txt` 的 `abl_boot_partition_label` 为准（本机 `boot_b`；别人的安装可能是 `boot_a`）；
    本包脚本自动跟随，不写死。
-2. 备份 Linux 启动槽与你当前的 DTB/boot 镜像（如果后面要改动；把 boot_b 换成实际槽位）：
+2. 备份 Linux 启动槽与你当前的 DTB/boot 镜像（槽位自动检测）：
    ```bash
-   LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
-   sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
-   cp -a /boot/armbian-kernel-csot.img /root/armbian-kernel-csot.img.bak-$(date +%Y%m%d)
+   sudo ../install/backup-boot.sh
    ```
 3. 想临时禁用传感器栈：`sudo touch /etc/disable-sensors`（安装后生效，启动脚本会直接退出）。
 4. 本安装**会重启一次**；确保你没有其它未保存工作。

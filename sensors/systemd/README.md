@@ -5,22 +5,20 @@
 ## 服务依赖关系
 
 ```
-slpi-fw-guard.service        （开机早期，After=local-fs.target，Before=multi-user.target）
+slpi-fw-guard.service        （开机早期，After=local-fs.target，Before=multi-user.target slpi-sensors.service）
         ↓
-multi-user.target
-        ↓
-slpi-sensors.service         （oneshot，After=multi-user.target，RemainAfterExit）
-        ↓ ExecStart: slpi-sensors-start.sh
+slpi-sensors.service         （Type=exec，After=slpi-fw-guard.service；不再等 multi-user.target）
+        ↓ ExecStart: slpi-sensors-start.sh（轮询/健康检查，最长 150s）
         ↓ ExecStop:  slpi-sensors-stop.sh
 iio-sensor-proxy.service     （Type=dbus，由 GNOME 通过 D-Bus 激活；静态，不要 enable）
-        ↑ drop-in: after-ssc.conf（After=multi-user.target、ExecStartPre=sleep 2、Restart=on-failure）
+        ↑ drop-in: after-ssc.conf（ExecStartPre=sleep 2、Restart=on-failure、TimeoutStopSec=3）
 sensor-boot-report.timer     （OnBootSec=5min，触发 sensor-boot-report.service）
 ```
 
 ## 关键点
 
-- `slpi-sensors.service` 的 ExecStart 约需 1.5–2 分钟（healcheck 在内），是 oneshot；
-  不要给它加 `TimeoutStartSec` 限制（默认 oneshot 无限）。
+- `slpi-sensors.service` 为 `Type=exec`（exec 成功即视为启动，不等 oneshot 完成）；实测开机到传感器
+  可用约 22s，健康检查最长 150s 兜底。**不要**加 `TimeoutStartSec` 限制。
 - `slpi-fw-guard.service` 必须在 `multi-user.target` 之前运行（它守护内核固件路径）；
   不要禁用/移动它。
 - `iio-sensor-proxy.service` **不要 enable/start**（由 D-Bus 激活），也不要加 `Restart=always`。

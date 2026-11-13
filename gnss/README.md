@@ -144,7 +144,7 @@ iio-sensor-proxy(Compass) → GeoClue2 compass source（可选）
   sudo flatpak install flathub io.github.rinigus.PureMaps
   sudo flatpak override --system-talk-name=net.hadess.SensorProxy io.github.rinigus.PureMaps
   ```
-- 截图（合成定位验证）：`../gnss-notes/puremaps-verified-20261112.png`（开发工作区）。
+- 截图（合成定位验证）为开发工作区记录，未随包。
 
 ## 已验证结果（2026-11-12）
 

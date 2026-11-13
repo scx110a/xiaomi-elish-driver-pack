@@ -1,7 +1,7 @@
 # elish-camera 架构与已验证事实（2026-11-12 晚，修订版）
 
 > 本文替代旧交接文档中过时的相机结论；所有数字均来自本机实测。
-> 历史交接文档 `CAMERA-HANDOVER-20261112.md` 已删除；其错误点（Bayer/vflip/portal 等）已在本文与 measurements-integrated.md 中纠正。
+> 早期交接文档中的错误点（Bayer/vflip/portal 等）已在本文与 `measurements-integrated.md` 中纠正；不再引用已删除的交接文件。
 
 ## 1. 传感器与 media graph
 

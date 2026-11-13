@@ -9,17 +9,17 @@
 README.md / README.en.md / QUICKSTART.md / INSTALL.md / NOTES.md / PATCHES.md / VERSIONS.md / MANIFEST.md / LICENSE / SHA256SUMS
 install.sh     一键安装入口（= install/turnkey.sh 的包装）
 kernel/        统一内核（详见下）
-sensors/       传感器子包（自包含，58 文件）
+sensors/       传感器子包（自包含，53 文件）
 fingerprint/   指纹子包（自包含）
 gnss/          GNSS 子包：airoha_gps 驱动源码、airoha-gnssd 用户态、systemd/gpsd 集成、
-               协议与逆向结论（docs/PROTOCOL.md）、flash 修复说明（extract/）
-install/       一键安装器（turnkey/extract-all/build-userspace + lib/）与合并自检（check-all.sh）
+               协议与逆向结论（gnss/docs/PROTOCOL.md）、flash 修复说明（extract/）
+install/       一键安装器（turnkey/extract-all/build-userspace + lib/）、备份启动槽脚本（backup-boot.sh）
+               与合并自检（check-all.sh）
 docs/          合并升级影响评估（UPGRADE-IMPACT-ALL.md）+ 硬件状态权威基线（HARDWARE-STATUS.md）
-               + 整机 TODO（TODO.md）+ 设备数据/固件提取指南（DEVICE-DATA-EXTRACTION.md）
-               + 安全加固说明（HARDENING.md）
-               + 内核升级风险评估（KERNEL-UPGRADE-RISK.md）
-camera/        相机子包：elish-camera/（前后摄全分辨率 3280×2464/4208×3120，GPU debayer + Venus 硬编，~30fps 拍照/录像，/dev/video2+/dev/video20 双虚拟相机，autoserve 自动路由，PipeWire/portal，后摄自动对焦）+ 旧 OV8856 helper + install.sh（一键安装）+ elish-camera/verify.sh（自检）
+               + 整机 TODO（TODO.md）+ 历史记录（HISTORY.md）+ 设备数据/固件提取指南（DEVICE-DATA-EXTRACTION.md）
+               + 安全加固说明（HARDENING.md）+ 内核升级风险评估（KERNEL-UPGRADE-RISK.md）
                + Android/Linux 充电驱动对比（CHARGING-DRIVER-COMPARISON.md）
+camera/        相机子包：elish-camera/（前后摄全分辨率 3280×2464/4208×3120，GPU debayer + Venus 硬编，~30fps 拍照/录像，/dev/video2+/dev/video20 双虚拟相机，autoserve 自动路由，PipeWire/portal，后摄自动对焦）+ 旧 OV8856 helper + install.sh（一键安装）+ elish-camera/verify.sh（自检）
 ```
 
 ## kernel/
@@ -52,7 +52,7 @@ camera/        相机子包：elish-camera/（前后摄全分辨率 3280×2464/4
 
 原传感器安装包的用户态部分：`README/INSTALL/NOTES/PATCHES/VERSIONS/MANIFEST`、`userspace/`（hexrpc/iio/libssc）、
 `systemd/`、`scripts/`、`install/`、`extract/`、`docs/`（TROUBLESHOOTING、IIO-FIX、HANDOFF-SENSORS、
-UPGRADE-IMPACT、evidence）。内核资产统一在顶层 `kernel/`（不再在 sensors/ 内重复）。
+UPGRADE-IMPACT）。内核资产统一在顶层 `kernel/`（不再在 sensors/ 内重复）。
 
 ## gnss/
 
@@ -79,7 +79,7 @@ Airoha AG3335 GNSS 子包（2026-11-12 打通）：
 | `system/` | pam.d、systemd、udev、bin、user-bin 配置/脚本 |
 | `extract/` | `extract-gfenu-ta.sh` + TA 来源与 sha256 |
 | `install/` | 安装/自检/卸载脚本 |
-| `docs/` | HARDWARE-STATUS（硬件权威基线）、LOCAL-LIBFPRINT（本地同名 libfprint 包）、HANDOFF-FINGERPRINT、DT-COMPARE、REPORT、PORTING-PLAN、ANDROID-ANSWER |
+| `docs/` | HANDOFF-FINGERPRINT（历史交接）、DT-COMPARE（历史分析）、REPORT、PORTING-PLAN、ANDROID-ANSWER |
 
 ## 明确不包含 / 需现场获取
 
@@ -96,4 +96,4 @@ Airoha AG3335 GNSS 子包（2026-11-12 打通）：
 
 ## 统计
 
-**283 个文件；体积约 3.2MB**（不含 SHA256SUMS）。**无 ELF/固件/日志/TA/指纹模板/单机校准 dump**；唯一二进制是模型级联合 DTB；`SHA256SUMS` 已按最终树生成。
+**280 个文件；体积约 3.1MB**（不含 SHA256SUMS）。**无 ELF/固件/日志/TA/指纹模板/单机校准 dump**；唯一二进制是模型级联合 DTB；`SHA256SUMS` 已按最终树生成。

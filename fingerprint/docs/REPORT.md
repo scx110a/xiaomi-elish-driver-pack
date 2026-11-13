@@ -1,6 +1,8 @@
 # 指纹传感器移植调研（阶段 0）
 
 日期：2026-11-09
+
+> 历史分析记录；最终 TA 结论：必须使用 `gfenu`（`fingerpr` 为错误/旧方案，见 `../NOTES.md`）。
 设备：Xiaomi Mi Pad 5 Pro (elish / SM8250)，运行 Armbian (6.18.44)
 
 ---
@@ -173,7 +175,7 @@ fingerpr.b07   493,208 字节
 
 这就是 Goodix 的**签名 TA 镜像**，已保存到 `ta-image/`。
 
-- TA 名称候选：`fingerpr`（文件名）/ `fingerprint`（完整词）
+- TA 名称：最终确认必须使用 `gfenu`（Android 里另一套 `fingerpr` 是错误/旧方案）
 - 内核驱动用 `request_firmware()` 从 `/lib/firmware` 加载 `<name>.mdt` + `.bNN`
 - 部署时把这 9 个文件放到 `/lib/firmware/` 即可
 - **注意**：TA 是签名且绑定 QSEE 的，只能原样使用，不能修改

@@ -2,7 +2,7 @@
 
 > 子包细节：`sensors/NOTES.md`（传感器专属）、`fingerprint/NOTES.md`（指纹专属）、`gnss/NOTES.md`（GNSS 专属）。
 > 升级影响：`docs/UPGRADE-IMPACT-ALL.md` 与 `sensors/docs/UPGRADE-IMPACT.md`。
-> **硬件驱动状态以 `docs/HARDWARE-STATUS.md` 为权威基线**（摄像头仍未驱动；GNSS 已于 2026-11-12 打通）。
+> **硬件驱动状态以 `docs/HARDWARE-STATUS.md` 为权威基线**（2026-11-13：相机/GNSS/音频均已打通；剩余限制见该文件）。
 
 ## 0. 红线
 

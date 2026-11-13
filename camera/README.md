@@ -1,11 +1,14 @@
 # 前摄 OV8856（L1）
 
+> 本文是 2026-11-12 的开发过程记录（按时间追加），当前状态见文末「最终状态」与
+> `camera/elish-camera/README.md`。
+
 ## 状态（2026-11-12）
 
 - 前摄 OV8856 已 probe：CCI1 / CSIPHY4 / 2-lane，`ov8856 21-0010`
 - CAMSS → CSID0 → VFE0 RDI0 通路打通，`/dev/video0` 1640x1232 `pgAA` raw
 - 简单 QR + 复杂银行/微信码均已验证（ZXing 主解码，zbar 兜底）
-- 仅前摄；后摄 OV13B10/Hi556 尚未做
+- （历史：本段为前摄初始状态；后摄 OV13B10 已于同日打通，当前状态见文末「最终状态」）
 - 无 3A/AF/EEPROM；固定曝光/增益；raw Bayer；视频通话还需软 ISP
 
 ## 安装脚本

@@ -62,7 +62,7 @@ It bundles four subsystems on one shared kernel / DTB / boot image:
 | Kernel | fastrpc SDSP VMID / sensors-PD, QSEECOM/TEE, mdt_loader, qcom_scm, goodix_fp_spi | ✅ | Fingerprint/sensor kernel layer |
 | Kernel | LPASS pinctrl clock-timeout defer (pogo keyboard/USB random failures) | ✅ | Stand-alone patch `kernel/patches/0002-…` |
 | Kernel | SMB5 Type-C legacy/100 mA resume hang | ✅ | Verified with 3 suspend/resume cycles with charger attached |
-| System | Display/touch/pen/hall/battery/audio/Wi-Fi/BT/USB HID/GPU/UFS/PCIe/Venus | ⚠️ | Platform baseline; **speakers currently silent (CS35L41 PUP timeout, under investigation)**; see `docs/HARDWARE-STATUS.md` |
+| System | Display/touch/pen/hall/battery/audio/Wi-Fi/BT/USB HID/GPU/UFS/PCIe/Venus | ⚠️ | Platform baseline; **audio fixed on 2026-11-13** (PulseAudio/WirePlumber PCM contention; see `docs/HARDWARE-STATUS.md`) |
 | System | Screen orientation / tablet mode / auto-rotate configuration | ⚠️ | `tablet_mode=on/off/auto`, `rebuild_mode`; depends on the cover hall switch |
 | System | Pogo keyboard after suspend/resume | ⚠️ | Known kernel USB PHY resume issue; reboot/re-plug recovers; userspace deliberately does not touch it |
 | System | Charging | ⚠️ | Baseline ~1.95 A; quick-charge pump / 33 W+ not validated (no original charger) |
@@ -176,7 +176,7 @@ camera/        camera subpackage: elish-camera GPU pipeline (full-res front/rear
                helper scripts, udev/autostart/resume hooks, install.sh + verify.sh, docs/
 install/       installer: turnkey.sh, extract-all.sh, build-userspace.sh,
                check-all.sh, file map
-docs/          hardware baseline, TODO, upgrade impact, hardening, data extraction guide
+docs/          hardware baseline, TODO, history, upgrade impact, hardening, data extraction guide
 ```
 
 ---
@@ -199,22 +199,9 @@ docs/          hardware baseline, TODO, upgrade impact, hardening, data extracti
 
 ### 1. One-command full install (recommended)
 
-```bash
-cd ~/xiaomi-elish-linux-v1-final
-
-# preview (writes nothing)
-./install.sh --dry-run --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk
-
-# install: deps → extract → data root/firmware invariant → build userspace
-#          → system integration → self-check
-sudo ./install.sh --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk --yes
-
-# optional: build and install the kernel too (writes the Linux boot slot; auto-detected; explicit opt-in; auto-backup)
-sudo ./install.sh --with-kernel --kernel-src /var/tmp/kbuild-src --write-boot --yes
-
-sudo reboot
-sudo ./install/check-all.sh
-```
+See [`QUICKSTART.md`](QUICKSTART.md) for the single authoritative one-command flow
+(preview → install → optional kernel → reboot/verify); manual per-step instructions are in
+[`INSTALL.md`](INSTALL.md).
 
 ### 2. Per-component installation
 
@@ -236,7 +223,7 @@ installs the combined DTB and initramfs hook, backs up and rebuilds the Linux bo
 #### 2.2 Sensors
 
 ```bash
-# one-shot (extract + data root + system integration + self-check)
+# one-shot (extract + data master copy + system integration + self-check)
 sudo ./install.sh --android <vendor.img> --pmos <slpi.apk> --skip-build --yes
 
 # or step by step
@@ -385,7 +372,7 @@ under the **MIT License** — see [`LICENSE`](LICENSE).
 ## Maintenance
 
 - Hardware baseline: `docs/HARDWARE-STATUS.md` (authoritative)
-- TODO / known issues: `docs/TODO.md`
+- TODO / known issues: `docs/TODO.md`; development/deployment history: `docs/HISTORY.md`
 - Upgrade impact: `docs/UPGRADE-IMPACT-ALL.md`, `sensors/docs/UPGRADE-IMPACT.md`
 - Kernel upgrade risk assessment and checklist: `docs/KERNEL-UPGRADE-RISK.md`
 - Rollback/recovery: `docs/`, `kernel/README.md`; kernel/system installers back up the Linux boot slot and key configs automatically.

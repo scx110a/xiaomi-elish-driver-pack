@@ -3,38 +3,21 @@
 > 先读根 `README.md` 的红线与 `NOTES.md`。所有命令在设备本机 aarch64 执行，除注明外需要 root。
 > 各子包完整细节：`sensors/INSTALL.md`、`fingerprint/INSTALL.md`、`gnss/INSTALL.md`、`kernel/README.md`。
 
-## 一键安装（推荐，最少手动）
+## 一键安装（推荐）
 
-```bash
-cd ~/xiaomi-elish-linux-v1-final
-# 先看会做什么（不写系统）
-./install.sh --dry-run --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk
-# 正式安装（自动：依赖 → 提取 → 数据母本 → 补丁+编译用户态 → 系统集成 → 自检）
-sudo ./install.sh --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk --yes
-# 可选：一次性把内核也构建安装（写 Linux boot 槽，自动检测，需显式）
-sudo ./install.sh --with-kernel --kernel-src /var/tmp/kbuild-src --write-boot --yes
-sudo reboot && sudo ./install/check-all.sh
-```
-
-仍需手动：①提供 Android vendor 镜像 + pMOS SLPI APK（本包不含，见 `docs/DEVICE-DATA-EXTRACTION.md`）；
-②重启一次；③可选：内核构建、指纹录入、sudo 指纹 PAM。
-
-> **下文是等价的手动分步安装**，便于排障、审计或自定义（如只装某一个子系统）。
+完整一键流程见 [`QUICKSTART.md`](QUICKSTART.md)（唯一权威）；下文是等价的手动分步安装，
+便于排障、审计或自定义（如只装某一个子系统）。
 
 ## 0. 安全前置与备份
 
 1. **不要写 Android 启动槽**；只操作 rootfs 与 **Linux 启动槽**。槽位不写死：以
    `/boot/armbianEnv.txt` 的 `abl_boot_partition_label` 为准（本机 `boot_b`；别人的安装可能是 `boot_a`）。
-2. 备份 Linux 启动槽 / boot 镜像 / DTB（把下面的 boot_b 换成实际槽位）：
+2. 备份 Linux 启动槽 / boot 镜像 / DTB / PAM（一条命令，槽位自动检测）：
    ```bash
-   LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt); \
-   sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
-   sudo cp -a /boot/armbian-kernel-csot.img /root/
-   sudo cp -a /usr/lib/linux-image-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb /root/
+   sudo ./install/backup-boot.sh --pam
    ```
-3. 备份 PAM 与数据（若系统已有配置）：
+3. 备份传感器数据（若系统已有配置）：
    ```bash
-   sudo cp -a /etc/pam.d/sudo /root/sudo.pam.bak-$(date +%Y%m%d)
    sudo tar -czf /root/sensor-data-backup-$(date +%Y%m%d).tar.gz /usr/share/qcom-ssc-elish 2>/dev/null || true
    ```
 4. 临时禁用传感器：`sudo touch /etc/disable-sensors`（安装后生效，开机即跳过传感器链）。
@@ -149,14 +132,12 @@ sudo ./kernel/initramfs/install-hook.sh    # 安装修复版 hook + update-initr
 **重建 boot 镜像并写入 Linux 启动槽**（推荐系统 hook，使用新 initrd；槽位自动检测）：
 
 ```bash
-sudo cp -a /boot/armbian-kernel-csot.img /boot/armbian-kernel-csot.img.bak-$(date +%Y%m%d)
-LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
-sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
+sudo ./install/backup-boot.sh         # 已备份过可跳过
 sudo /etc/kernel/postinst.d/zz-update-abl-kernel
 ```
 
-`kernel/install-new-kernel.sh` 是历史脚本（复用旧 ramdisk、硬编码参数），initramfs 更新后不要用，
-详见 `kernel/README.md`。
+`kernel/install-new-kernel.sh` 是历史脚本（复用旧 ramdisk、不使用更新后的 initrd），initramfs 更新后不要用；
+统一用 `kernel/update-boot-image.sh`（详见 `kernel/README.md`）。
 
 ## 4. 重启并验证内核层
 

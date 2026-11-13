@@ -1,4 +1,6 @@
-# 指纹移植实施计划
+# 指纹移植实施计划（历史）
+
+> 历史计划稿（2026-11-10）；当前状态见 `README.md`/`INSTALL.md`。最终 TA 结论：必须使用 `gfenu`（`fingerpr` 为错误/旧方案）。
 
 目标：在 Armbian (SM8250/elish) 上启用 Goodix 指纹（登录/sudo/锁屏）。
 硬约束：**不对 Android 分区做任何写操作**；**不破坏现有 Linux 系统**（每步可回退）。
@@ -35,9 +37,9 @@
 
 ## 阶段 1：TA 镜像部署（已完成 2026-11-09）
 
-- [x] `cp ta-image/fingerpr.* /lib/firmware/`（9 个文件，11 MB）
+- [x] `cp ta-image/gfenu.* /lib/firmware/`（9 个文件，约 4.8 MB；最终必须用 `gfenu`，`fingerpr` 为错误/旧方案）
 - [x] 验证文件权限和路径
-- [x] 回退方法：`rm /lib/firmware/fingerpr.*`
+- [x] 回退方法：`rm /lib/firmware/gfenu.*`
 
 ## 阶段 2 前置：内核重建方案（已评估）
 

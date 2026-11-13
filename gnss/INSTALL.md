@@ -1,6 +1,6 @@
 # GNSS 子包安装文档
 
-前置：本包 `kernel/dtb/sm8250-xiaomi-elish-csot.dtb`（含 GNSS 节点）已按
+前置：本包 `../kernel/dtb/sm8250-xiaomi-elish-csot.dtb`（含 GNSS 节点）已按
 `../kernel/update-boot-image.sh` 写进 boot_b 并重启；内核模块已编译安装。
 **不要写 boot_a / Android 分区。**
 

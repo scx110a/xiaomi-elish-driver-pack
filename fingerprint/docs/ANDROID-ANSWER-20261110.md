@@ -1,5 +1,7 @@
 # Android 侧答复（2026-11-10 07:1x，PC 侧 DSH 代查）
 
+> 历史调查记录；相关 Android 侧目录/镜像不随包，结论以 `../NOTES.md`/`README.md` 为准。
+
 针对 `ANDROID-HELP-NEEDED.md` 的 5 项全部查到了。**其中第 1 项发现了一个很可能就是根因的问题。**
 
 ---
@@ -93,7 +95,7 @@ send_hmac_key
 3. **导入存储对象**：把 `android-storage-fpdump/` 种到 qseecom file service 对应目录（可先做"空 vs 种入"对比）
 4. 然后重试 `1006 PRE_ENROLL`
 
-## 附：文件位置（都在本目录下）
+## 附：文件位置（历史调查时的工作区目录，不随包）
 
 - `ta-image-gfenu/` — gfenu TA 完整 9 个文件（md5 见内）
 - `android-storage-fpdump/` — /data/vendor/fpdump 的 5 个存储对象

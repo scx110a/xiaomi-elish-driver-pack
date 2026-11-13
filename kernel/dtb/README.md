@@ -14,7 +14,7 @@
      `pinctrl-1/2`=`gps-enable-active`/`gps-enable-suspend`（TLMM GPIO158）。
 
 本目录的 DTB 已包含以上全部改动；2026-11-12 又合并了前摄 OV8856/PM8008/CAMSS 节点（见 `camera/README.md`）。原 DTB 说明：（由 `sm8250-xiaomi-elish-csot.dtb` + GNSS 节点生成，
-2026-11-12，sha256 `d3c2f8b5eddb5eca91ad2648ade11a542c16fd34a9dd471549b28bc43d39e153`）。
+2026-11-12，sha256 `14909d42d6a1935f6dd49ff8b4700e0adf4164024c6f0c25f6ba94b6ad3ee4a8`）。
 
 ## 传感器真正依赖的是 fastrpc reserved-memory
 

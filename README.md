@@ -55,7 +55,7 @@ GPU debayer + Venus 硬编）** 四套功能合并为一个**可重复安装的�
 | 内核 | fastrpc SDSP VMID/sensors-PD、QSEECOM/TEE、mdt_loader、qcom_scm、goodix_fp_spi | ✅ | 指纹/传感器内核层 |
 | 内核 | LPASS pinctrl clock-timeout defer（pogo 键盘/USB 随机失效） | ✅ | 独立补丁 `kernel/patches/0002-…` |
 | 内核 | SMB5 Type-C legacy/100mA resume 卡死 | ✅ | 带充电器 3 轮 suspend/resume 验证 |
-| 系统 | 显示/触摸/笔/霍尔/电池/音频/WiFi/BT/USB 键鼠/GPU/UFS/PCIe/Venus | ⚠️ | 基础平台；**外放当前 CS35L41 PUP 超时无声（待查）**，见 `docs/HARDWARE-STATUS.md` |
+| 系统 | 显示/触摸/笔/霍尔/电池/音频/WiFi/BT/USB 键鼠/GPU/UFS/PCIe/Venus | ⚠️ | 基础平台；**音频已于 2026-11-13 修复**（PulseAudio/WirePlumber PCM 争用，见 `docs/HARDWARE-STATUS.md`） |
 | 系统 | 屏幕方向/平板模式/自动旋转配置 | ⚠️ | `tablet_mode=on/off/auto`、`rebuild_mode`；依赖保护套霍尔 |
 | 系统 | 睡眠唤醒后 pogo 键盘 | ⚠️ | 已知内核 USB PHY resume 问题；重启/重插恢复，用户态不改（防死锁） |
 | 系统 | 充电 | ⚠️ | 基础 ~1.95A；快充泵/33W+ 无原装充电器未验证 |
@@ -165,8 +165,8 @@ camera/        相机子包：elish-camera GPU 管线（前后摄全分辨率、
                虚拟相机、autoserve、自动对焦）、辅助脚本、udev/自启/休眠恢复、
                install.sh + verify.sh、docs/（架构/测量/逆向资料）
 install/       安装器：一键安装 turnkey.sh、数据提取 extract-all.sh、用户态构建
-               build-userspace.sh、合并自检 check-all.sh、文件落位表
-docs/          硬件状态基线、整机 TODO、升级影响、备份/救援、设备数据提取指南
+               build-userspace.sh、备份启动槽 backup-boot.sh、合并自检 check-all.sh、文件落位表
+docs/          硬件状态基线、整机 TODO、历史记录、升级影响、备份/救援、设备数据提取指南
 ```
 
 ---
@@ -188,21 +188,8 @@ docs/          硬件状态基线、整机 TODO、升级影响、备份/救援�
 
 ### 1. 全组件一键安装（推荐）
 
-```bash
-cd ~/xiaomi-elish-linux-v1-final
-
-# 先预览（不写系统）
-./install.sh --dry-run --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk
-
-# 正式安装：依赖 → 提取 → 数据母本/固件不变量 → 用户态补丁+编译 → 系统集成 → 自检
-sudo ./install.sh --android /path/vendor_a.img --pmos /path/firmware-xiaomi-elish-slpi-*.apk --yes
-
-# 可选：把内核也一次构建安装（写 Linux boot 槽，自动检测，显式 opt-in，自动备份）
-sudo ./install.sh --with-kernel --kernel-src /var/tmp/kbuild-src --write-boot --yes
-
-sudo reboot
-sudo ./install/check-all.sh
-```
+一键流程（预览 → 正式安装 → 可选内核 → 重启验证）统一见 [`QUICKSTART.md`](QUICKSTART.md)；
+手动分步/排障见 [`INSTALL.md`](INSTALL.md)。
 
 ### 2. 单组件安装
 
@@ -364,7 +351,7 @@ sudo ./kernel/dtb/verify-combined-dtb.sh
 ## 维护
 
 - 硬件基线：`docs/HARDWARE-STATUS.md`（权威）
-- 整机待办/已知问题：`docs/TODO.md`
+- 整机待办/已知问题：`docs/TODO.md`；历史开发/部署记录：`docs/HISTORY.md`
 - 升级影响：`docs/UPGRADE-IMPACT-ALL.md`、`sensors/docs/UPGRADE-IMPACT.md`
 - 内核升级风险评估与操作清单：`docs/KERNEL-UPGRADE-RISK.md`
 - 回滚/救援：`docs/` 与 `kernel/README.md`、备份脚本（安装内核/系统前会自动备份 Linux 启动槽与关键配置）

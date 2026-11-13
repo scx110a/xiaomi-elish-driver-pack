@@ -53,11 +53,7 @@ sudo apt-mark hold libfprint-2-2
 
 **升级前**
 ```bash
-LABEL=$(sed -n "s/^abl_boot_partition_label=//p" /boot/armbianEnv.txt)
-sudo dd if=/dev/disk/by-partlabel/$LABEL of=/root/${LABEL}-backup-$(date +%Y%m%d).img bs=1M status=progress
-sudo cp -a /boot/armbian-kernel-csot.img /root/
-sudo cp -a /usr/lib/linux-image-$(uname -r)/qcom/sm8250-xiaomi-elish-csot.dtb /root/
-sudo cp -a /etc/pam.d/sudo /root/sudo.pam.bak-$(date +%Y%m%d)
+sudo ./install/backup-boot.sh --pam
 sudo tar -czf /root/sensor-data-backup-$(date +%Y%m%d).tar.gz /usr/share/qcom-ssc-elish 2>/dev/null || true
 sensor-status > /tmp/sensor-baseline.txt
 ./install/check-all.sh > /tmp/all-baseline.txt

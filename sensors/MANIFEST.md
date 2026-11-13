@@ -65,7 +65,6 @@ docs/
   UPGRADE-IMPACT.md       ★ 升级影响评估（哪些升级会破坏功能、哪些必须保持）
   IIO-FIX.md              iio-sensor-proxy 修复原理与验证
   HANDOFF-SENSORS.md      传感器项目历史交接（第 17–45 节，已去除指纹项目部分）
-  evidence/               验证证据（稳定性分析、部署记录、延迟实验结果）
 ```
 
 ## 明确不包含 / 需现场获取
@@ -79,7 +78,7 @@ docs/
 | fastrpc.ko | 与内核 vermagic 强绑定 | 用 kernel 补丁自行编译 |
 | hexagonrpcd / libhexagonrpc | 编译产物 | 按 userspace/hexrpc 编译 |
 | iio-sensor-proxy / libssc | 编译产物 | 按 userspace 编译 |
-| 日志/实验工具（sensor-test、matrix、调参编排） | 单机实验产物 | 不入库；历史记录见 docs/HANDOFF-SENSORS.md 与 docs/evidence/ |
+| 日志/实验工具（sensor-test、matrix、调参编排） | 单机实验产物 | 不入库；历史记录见 docs/HANDOFF-SENSORS.md 与根 `docs/HISTORY.md` |
 
 ## 统计（打包时）
 

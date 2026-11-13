@@ -58,28 +58,28 @@
 - GNSS（2026-11-12）：`/soc@0/geniqup@9c0000/i2c@994000` 改为 `qcom,geni-uart` + `status=okay`
   （`pinctrl-0` = `qup-uart5-default-state`，gpio12–15）；根 `/bcm4775`（`gps-ldo`、PMIC
   `gps-clk-default`、`gps-enable-active/suspend`）；
-- 已验证联合 DTB 随包：`kernel/dtb/sm8250-xiaomi-elish-csot.dtb`（sha256 `d3c2f8b5…`）；
+- 已验证联合 DTB 随包：`kernel/dtb/sm8250-xiaomi-elish-csot.dtb`（sha256 `14909d42…`）；
 - 不要用当前树 DTS 重建（会丢 17 节点/109 属性）；dtc 往返破坏的是 **L10C（regulators-1/ldo10）**，
   不是 L10A。
 
 ## 二、用户态补丁
 
-### 4. hexagonrpc v0.3.2 warm-attach（传感器）
+### 6. hexagonrpc v0.3.2 warm-attach（传感器）
 
 `userspace/hexrpc/patches/0001-hexrpc-0.3.2-warm-attach.patch`（位于 `sensors/` 子包内）：
 `HEXAGONRPC_WARM_ATTACH=1` 时 warm open 重试；attach `EPERM` 50µs 重试。
 
-### 5. iio-sensor-proxy 三处（传感器）
+### 7. iio-sensor-proxy 三处（传感器）
 
 `sensors/userspace/iio-sensor-proxy/patches/0001-iio-sensor-proxy-hotplug-stayalive.patch`：
 claim→polling、无传感器常驻、无条件连接 uevent。
 
-### 6. libfprint goodixqsee 日志补丁（指纹）
+### 8. libfprint goodixqsee 日志补丁（指纹）
 
 `fingerprint/src/libfprint/patches/libfprint-goodixqsee-logging.patch`：
 `bring_up()`/worker 失败日志（TA 看门狗依赖）。
 
-### 7. GNSS：新增代码（非补丁）
+### 9. GNSS：新增代码（非补丁）
 
 本机 AG3335 无主线驱动，GNSS 由本包新增的源码/配置实现（不是对现有驱动的 patch）：
 

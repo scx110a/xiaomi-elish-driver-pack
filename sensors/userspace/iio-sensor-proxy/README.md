@@ -4,7 +4,7 @@
 
 - 上游：https://gitlab.freedesktop.org/hadess/iio-sensor-proxy
 - 本机基线 commit：`ca0d5b0`（版本 3.9，master）
-- 补丁：`patches/0001-iio-sensor-proxy-claim-stayalive-hotplug.patch`（对 `src/iio-sensor-proxy.c`）
+- 补丁：`patches/0001-iio-sensor-proxy-hotplug-stayalive.patch`（对 `src/iio-sensor-proxy.c`）
 
 ## 三处修改（缺一不可）
 
@@ -42,7 +42,7 @@ libgudev-1.0-dev libpolkit-gobject-1-dev libssl-dev`，外加本项目自行安�
 git clone https://gitlab.freedesktop.org/hadess/iio-sensor-proxy
 cd iio-sensor-proxy
 git checkout ca0d5b0
-git apply /path/to/patches/0001-iio-sensor-proxy-claim-stayalive-hotplug.patch
+git apply /path/to/patches/0001-iio-sensor-proxy-hotplug-stayalive.patch
 
 meson setup build --prefix=/usr -Dssc-support=enabled
 ninja -C build

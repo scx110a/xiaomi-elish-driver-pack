@@ -17,7 +17,7 @@
 | boot hook 参考 | `kernel/boot/zz-update-abl-kernel`（系统 hook 副本）；统一用 `kernel/update-boot-image.sh` |
 | QCOM_MDT_LOADER Kconfig | `kernel/patches/0003-qcom-mdt-loader-user-selectable.patch` |
 | boot 镜像更新 | `kernel/update-boot-image.sh`（预检+备份+回读校验） |
-| 联合 DTB（随包） | `kernel/dtb/sm8250-xiaomi-elish-csot.dtb`，sha256 `d3c2f8b5eddb5eca91ad2648ade11a542c16fd34a9dd471549b28bc43d39e153`（模型级，无本机私有信息；**2026-11-12 加入 GNSS：QUP5 UART + bcm4775 + PMIC GPS clock pinctrl**） |
+| 联合 DTB（随包） | `kernel/dtb/sm8250-xiaomi-elish-csot.dtb`，sha256 `14909d42d6a1935f6dd49ff8b4700e0adf4164024c6f0c25f6ba94b6ad3ee4a8`（模型级，无本机私有信息；**2026-11-12 加入 GNSS：QUP5 UART + bcm4775 + PMIC GPS clock pinctrl**） |
 | initramfs hook | `kernel/initramfs/hooks/xiaomi-elish-firmware`（修复版，跳过 slpi 符号链接/禁用文件） |
 | DTB 关键项 | `qcom,vmids=<3 15 5 6>`；`/fingerprint` `firmware-name="gfenu"`、`compatible="goodix,gf3626"` |
 

@@ -1,6 +1,6 @@
 # 补丁与配置修改清单
 
-本包所有代码修改都以补丁形式提供（**不含编译产物**）。三个补丁均已在专属基准上做 `patch -p1` 应用校验。
+本包所有代码修改都以补丁形式提供（**不含编译产物**）。内核 1 个 + 用户态 6 个（hexrpc 5、iio 1）补丁均已在专属基准上做 `patch -p1` / `git apply` 校验（见 §5）。
 
 ## 1. 内核：fastrpc.c（2 个 hunk）
 
@@ -81,7 +81,7 @@ dmesg 期望：`SDSP assign try [0]: 0`。
 | 文件 | 作用 |
 |---|---|
 | `systemd/dbus/net.hadess.SensorProxy.service` | 增加 `SystemdService=iio-sensor-proxy.service`，让 D-Bus 激活走 systemd（否则绕过 systemd、重启风暴） |
-| `systemd/iio-dropin/after-ssc.conf` | iio drop-in：`After=multi-user.target`、`ExecStartPre=sleep 2`、`Restart=on-failure` |
+| `systemd/iio-dropin/after-ssc.conf` | iio drop-in：`ExecStartPre=sleep 2`、`Restart=on-failure`、`TimeoutStopSec=3`（加速改造后不再 `After=multi-user.target`） |
 | `systemd/udev/99-ssc-accel.rules` | 启用 SSC accelerometer（上游默认 disabled） |
 | `systemd/udev/81-libssc-xiaomi-elish.rules` | 加速度计挂载矩阵 `-1,0,0;0,-1,0;0,0,-1`（自动旋转方向） |
 | `systemd/udev/80-iio-sensor-proxy.rules` | 上游规则（自带 ssc-light/ssc-compass 与 fastrpc-sdsp 标签） |
@@ -95,4 +95,4 @@ dmesg 期望：`SDSP assign try [0]: 0`。
 - `../kernel/patches/0001-...` 在 pristine v6.18.44 `drivers/misc/fastrpc.c` 上 `patch -p1 --dry-run` 通过；
 - `userspace/hexrpc/patches/0001-...` 在 v0.3.2 的 `hexagonrpcd/rpcd.c` 上 `patch -p1 --dry-run` 通过；
 - `userspace/iio-sensor-proxy/patches/0001-...` 在 `ca0d5b0` 的 `src/iio-sensor-proxy.c` 上通过；
-- 三个补丁同时也在本机已打补丁的工作树上做 `git apply --check --reverse` 通过。
+- 全部补丁（含 hexrpc 0003/0004/0005）同时也在本机已打补丁的工作树上做 `git apply --check --reverse` 通过。
